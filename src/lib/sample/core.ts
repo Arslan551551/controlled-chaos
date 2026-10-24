@@ -1,0 +1,131 @@
+// Sample data for the clickable prototype — inventory, purchasing and COGS.
+// Product names are illustrative only (Living Blueprint §25); the real catalogue
+// is maintained in SKU / MOQ Setup. All modules read from this one data set so
+// numbers agree across screens.
+
+import { addDays } from "../engine/dates.ts";
+import type { CogsBatchInput } from "../engine/cogs.ts";
+import type { ActualSale, PlannedSale, PurchaseOrder, SalesChannel, Sku, StockPosition, TubeLedgerEvent } from "../engine/types.ts";
+
+/** "Today" for the prototype. Live data will use the real date. */
+export const AS_OF = "2026-10-24";
+
+export const skus: Sku[] = [
+  { sku: "CC-5OZ", description: "Curl Creme 5oz", type: "Finished Goods", cogsMethod: "Tube Fill", linkedTubeSku: "TB-CC-5OZ", supplier: "Beauty Labs", moq: 10000, leadTimeDays: 75, tubeThresholdQty: 0, active: true, shipStationStatus: "Complete" },
+  { sku: "HM-8OZ", description: "Hair Moisturizer 8oz", type: "Finished Goods", cogsMethod: "Tube Fill", linkedTubeSku: "TB-HM-8OZ", supplier: "Beauty Labs", moq: 10000, leadTimeDays: 62, tubeThresholdQty: 0, active: true, shipStationStatus: "Complete" },
+  { sku: "CC-3.4OZ", description: "Curl Creme 3.4oz", type: "Finished Goods", cogsMethod: "Tube Fill", linkedTubeSku: "TB-CC-34OZ", supplier: "Prime Fill", moq: 12000, leadTimeDays: 78, tubeThresholdQty: 0, active: true, shipStationStatus: "Complete" },
+  { sku: "CL-8OZ", description: "Cleanser 8oz", type: "Finished Goods", cogsMethod: "Tube Fill", linkedTubeSku: "TB-CL-8OZ", supplier: "Prime Fill", moq: 10000, leadTimeDays: 62, tubeThresholdQty: 0, active: true, shipStationStatus: "Complete" },
+  { sku: "ACC-COMB", description: "Hair Comb", type: "Accessory", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Sample Accessory Co", moq: 3000, leadTimeDays: 45, tubeThresholdQty: 0, active: true, shipStationStatus: "Complete" },
+  { sku: "ACC-BRUSH", description: "Hair Brush", type: "Accessory", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Sample Accessory Co", moq: 3000, leadTimeDays: 45, tubeThresholdQty: 0, active: true, shipStationStatus: "Complete" },
+  { sku: "TB-CC-5OZ", description: "Curl Creme 5oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 10000, leadTimeDays: 82, tubeThresholdQty: 10000, active: true, shipStationStatus: "Complete" },
+  { sku: "TB-HM-8OZ", description: "Hair Moisturizer 8oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 5000, leadTimeDays: 35, tubeThresholdQty: 10000, active: true, shipStationStatus: "Complete" },
+  { sku: "TB-CC-34OZ", description: "Curl Creme 3.4oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 10000, leadTimeDays: 76, tubeThresholdQty: 8000, active: true, shipStationStatus: "Complete" },
+  { sku: "TB-CL-8OZ", description: "Cleanser 8oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 5000, leadTimeDays: 35, tubeThresholdQty: 0, active: true, shipStationStatus: "Complete" },
+];
+
+const SYNC = `${AS_OF}T06:00`;
+
+/** Finished-goods stock from ShipStation (Brentwood + Georgia). Tube stock comes from the tube ledger. */
+export const finishedGoodsStock: StockPosition[] = [
+  { sku: "CC-5OZ", location: "Brentwood", qty: 7000, sourceUpdatedAt: SYNC },
+  { sku: "CC-5OZ", location: "Georgia", qty: 5000, sourceUpdatedAt: SYNC },
+  { sku: "HM-8OZ", location: "Brentwood", qty: 6200, sourceUpdatedAt: SYNC },
+  { sku: "HM-8OZ", location: "Georgia", qty: 3100, sourceUpdatedAt: SYNC },
+  { sku: "CC-3.4OZ", location: "Brentwood", qty: 8800, sourceUpdatedAt: SYNC },
+  { sku: "CC-3.4OZ", location: "Georgia", qty: 12000, sourceUpdatedAt: SYNC },
+  { sku: "CL-8OZ", location: "Brentwood", qty: 4200, sourceUpdatedAt: SYNC },
+  { sku: "CL-8OZ", location: "Georgia", qty: 8800, sourceUpdatedAt: SYNC },
+  { sku: "ACC-COMB", location: "Brentwood", qty: 4200, sourceUpdatedAt: SYNC },
+  { sku: "ACC-COMB", location: "Georgia", qty: 6000, sourceUpdatedAt: SYNC },
+  { sku: "ACC-BRUSH", location: "Brentwood", qty: 2800, sourceUpdatedAt: SYNC },
+  { sku: "ACC-BRUSH", location: "Georgia", qty: 3600, sourceUpdatedAt: SYNC },
+];
+
+/** Target burn per SKU: [7-day, 14-day, 30-day] average units per day. */
+const BURN: Record<string, [number, number, number]> = {
+  "CC-5OZ": [135, 102, 88],
+  "HM-8OZ": [150, 118, 96],
+  "CC-3.4OZ": [92, 84, 80],
+  "CL-8OZ": [80, 78, 76],
+  "ACC-COMB": [33, 34, 38],
+  "ACC-BRUSH": [31, 29, 27],
+};
+
+const CHANNEL_MIX: [SalesChannel, number][] = [
+  ["Amazon", 0.45],
+  ["Shopify", 0.27],
+  ["TikTok Shop", 0.13],
+  ["Walmart", 0.08],
+  ["Salon Direct", 0.04],
+  ["Distributor", 0.03],
+];
+
+/** Generates 30 days of fulfilled sales that reproduce the target 7/14/30-day burn. */
+function buildSales(): ActualSale[] {
+  const out: ActualSale[] = [];
+  for (const [sku, [b7, b14, b30]] of Object.entries(BURN)) {
+    const rMid = 2 * b14 - b7;
+    const rOld = (30 * b30 - 14 * b14) / 16;
+    for (let ago = 0; ago < 30; ago++) {
+      const rate = ago < 7 ? b7 : ago < 14 ? rMid : rOld;
+      const date = addDays(AS_OF, -ago);
+      let allocated = 0;
+      CHANNEL_MIX.forEach(([channel, share], idx) => {
+        const qty = idx === CHANNEL_MIX.length - 1 ? Math.round(rate) - allocated : Math.round(rate * share);
+        allocated += qty;
+        if (qty > 0) out.push({ id: `${sku}-${date}-${channel}`, sku, channel, date, qty });
+      });
+    }
+  }
+  return out;
+}
+
+export const actualSales: ActualSale[] = buildSales();
+
+export const plannedSales: PlannedSale[] = [
+  { id: "PS-001", sku: "CC-3.4OZ", expectedDate: "2026-12-15", qty: 15000, reference: "Holiday Retail Bulk Order", status: "Confirmed", notes: "Known large December shipment", delays: [] },
+  { id: "PS-002", sku: "HM-8OZ", expectedDate: "2027-02-10", qty: 4000, reference: "Salon chain launch – Glow Studios", status: "Tentative", notes: "Awaiting signed order", delays: [] },
+  { id: "PS-003", sku: "CL-8OZ", expectedDate: "2026-10-15", qty: 3000, reference: "Beauty Supply East restock", status: "Confirmed", notes: "Distributor confirmed by email", delays: [] },
+  { id: "PS-004", sku: "ACC-COMB", expectedDate: "2026-11-20", qty: 2000, reference: "Trade show giveaway", status: "Cancelled", notes: "Event cancelled", delays: [] },
+];
+
+const inst = (id: string, amount: number, dueDate: string | null, paid = false) => ({ id, amount, dueDate, paid });
+
+export const purchaseOrders: PurchaseOrder[] = [
+  // Open POs
+  { po: "PO-1024", type: "Finished Goods", sku: "HM-8OZ", supplier: "Beauty Labs", openDate: "2026-09-10", orderedQty: 10000, receivedQty: 0, saleableQty: null, leadTimeDays: 62, eta: "2026-11-18", status: "Open", notes: "Fill booked for week of 9 Nov", installments: [inst("1", 9000, "2026-09-12", true), inst("2", 8000, "2026-11-06"), inst("3", 6000, null)], documents: [{ id: "D1", name: "PO-1024 supplier quotation.pdf", type: "Supplier Quotation", uploadedBy: "Viviene", uploadedAt: "2026-09-09" }] },
+  { po: "PO-1027", type: "Empty Tube", sku: "TB-HM-8OZ", supplier: "China Pack", openDate: "2026-09-20", orderedQty: 20000, receivedQty: 0, saleableQty: null, leadTimeDays: 35, eta: "2026-11-02", status: "Open", notes: "", installments: [inst("1", 6400, "2026-09-22", true), inst("2", 6400, "2026-10-30")], documents: [] },
+  { po: "PO-1030", type: "Finished Goods", sku: "CL-8OZ", supplier: "Prime Fill", openDate: "2026-08-28", orderedQty: 10000, receivedQty: 4000, saleableQty: 4000, leadTimeDays: 62, eta: "2026-11-12", status: "Open", notes: "Partial delivery 4,000 received 20 Oct; balance due 12 Nov", installments: [inst("1", 9500, "2026-09-01", true), inst("2", 9500, "2026-11-14")], documents: [{ id: "D2", name: "PO-1030 packing list (partial).pdf", type: "Packing List", uploadedBy: "Viviene", uploadedAt: "2026-10-20" }] },
+  { po: "PO-1031", type: "Finished Goods", sku: "CC-3.4OZ", supplier: "Prime Fill", openDate: "2026-09-18", orderedQty: 12000, receivedQty: 0, saleableQty: null, leadTimeDays: 78, eta: "2026-12-05", status: "Open", notes: "", installments: [inst("1", 10000, "2026-09-20", true), inst("2", 10000, "2026-11-28"), inst("3", 0, null)], documents: [] },
+  { po: "PO-1033", type: "Accessory", sku: "ACC-BRUSH", supplier: "Sample Accessory Co", openDate: "2026-09-15", orderedQty: 3000, receivedQty: 0, saleableQty: null, leadTimeDays: 45, eta: "2026-10-30", status: "Open", notes: "", installments: [inst("1", 7200, "2026-11-02")], documents: [] },
+  // Received / closed POs (COGS batches)
+  { po: "PO-2011", type: "Finished Goods", sku: "CC-5OZ", supplier: "Beauty Labs", openDate: "2026-04-02", orderedQty: 12000, receivedQty: 12000, saleableQty: 11900, leadTimeDays: 75, eta: "2026-06-16", status: "Closed", notes: "", installments: [inst("1", 12000, "2026-04-05", true), inst("2", 12000, "2026-06-20", true)], documents: [] },
+  { po: "PO-2012", type: "Finished Goods", sku: "HM-8OZ", supplier: "Beauty Labs", openDate: "2026-02-10", orderedQty: 10000, receivedQty: 10000, saleableQty: 10000, leadTimeDays: 62, eta: "2026-04-13", status: "Closed", notes: "", installments: [inst("1", 11500, "2026-02-12", true), inst("2", 11500, "2026-04-15", true)], documents: [{ id: "D3", name: "PO-2012 final invoice.pdf", type: "PO Invoice", uploadedBy: "Viviene", uploadedAt: "2026-04-20" }] },
+  { po: "PO-2013", type: "Finished Goods", sku: "CC-3.4OZ", supplier: "Prime Fill", openDate: "2026-05-05", orderedQty: 15000, receivedQty: 15000, saleableQty: null, leadTimeDays: 78, eta: "2026-07-22", status: "Closed", notes: "Awaiting final invoice", installments: [inst("1", 12375, "2026-05-07", true), inst("2", 12375, "2026-07-25", true)], documents: [] },
+  { po: "PO-2014", type: "Finished Goods", sku: "CL-8OZ", supplier: "Prime Fill", openDate: "2026-06-01", orderedQty: 10000, receivedQty: 10000, saleableQty: null, leadTimeDays: 62, eta: "2026-08-02", status: "Closed", notes: "", installments: [inst("1", 9500, "2026-06-03", true), inst("2", 9500, "2026-08-05", true)], documents: [] },
+  { po: "PO-2015", type: "Accessory", sku: "ACC-COMB", supplier: "Sample Accessory Co", openDate: "2026-03-01", orderedQty: 5000, receivedQty: 5000, saleableQty: 5000, leadTimeDays: 45, eta: "2026-04-15", status: "Closed", notes: "", installments: [inst("1", 5500, "2026-03-03", true)], documents: [] },
+  { po: "PO-2016", type: "Accessory", sku: "ACC-BRUSH", supplier: "Sample Accessory Co", openDate: "2026-07-01", orderedQty: 3000, receivedQty: 3000, saleableQty: null, leadTimeDays: 45, eta: "2026-08-15", status: "Closed", notes: "", installments: [inst("1", 7200, "2026-07-03", true)], documents: [] },
+];
+
+/** Empty tube receipts and issues. Current tube stock and weighted cost come from this ledger. */
+export const tubeLedger: TubeLedgerEvent[] = [
+  { id: "T01", tubeSku: "TB-CC-5OZ", date: "2026-03-10", type: "Receipt", qty: 22000, unitCost: 0.5, po: "PO-0980" },
+  { id: "T02", tubeSku: "TB-CC-5OZ", date: "2026-06-01", type: "Issue to Fill", qty: 12000, batch: "B-2011", po: "PO-2011" },
+  { id: "T03", tubeSku: "TB-HM-8OZ", date: "2026-01-20", type: "Receipt", qty: 15000, unitCost: 0.62, po: "PO-0975" },
+  { id: "T04", tubeSku: "TB-HM-8OZ", date: "2026-03-01", type: "Issue to Fill", qty: 10000, batch: "B-2012", po: "PO-2012" },
+  { id: "T05", tubeSku: "TB-HM-8OZ", date: "2026-08-12", type: "Receipt", qty: 13000, unitCost: 0.66, po: "PO-1012" },
+  { id: "T06", tubeSku: "TB-CC-34OZ", date: "2026-04-15", type: "Receipt", qty: 29000, unitCost: 0.42, po: "PO-0990" },
+  { id: "T07", tubeSku: "TB-CC-34OZ", date: "2026-06-10", type: "Issue to Fill", qty: 15000, batch: "B-2013", po: "PO-2013" },
+  { id: "T08", tubeSku: "TB-CL-8OZ", date: "2026-05-02", type: "Receipt", qty: 12000, unitCost: 0.58, po: "PO-0995" },
+  { id: "T09", tubeSku: "TB-CL-8OZ", date: "2026-06-20", type: "Issue to Fill", qty: 10000, batch: "B-2014", po: "PO-2014" },
+  { id: "T10", tubeSku: "TB-CL-8OZ", date: "2026-09-05", type: "Receipt", qty: 18000, unitCost: 0.61, po: "PO-1015" },
+];
+
+export const cogsBatches: CogsBatchInput[] = [
+  { batchId: "B-2011", po: "PO-2011", sku: "CC-5OZ", product: "Curl Creme 5oz", method: "Tube Fill", linkedTubeSku: "TB-CC-5OZ", finalization: null },
+  { batchId: "B-2012", po: "PO-2012", sku: "HM-8OZ", product: "Hair Moisturizer 8oz", method: "Tube Fill", linkedTubeSku: "TB-HM-8OZ", finalization: { finalBaseTotalCost: 23000, finalQty: 10000, finalizedBy: "Director Finance", finalizedAt: "2026-04-28" } },
+  { batchId: "B-2013", po: "PO-2013", sku: "CC-3.4OZ", product: "Curl Creme 3.4oz", method: "Tube Fill", linkedTubeSku: "TB-CC-34OZ", finalization: null },
+  { batchId: "B-2014", po: "PO-2014", sku: "CL-8OZ", product: "Cleanser 8oz", method: "Tube Fill", linkedTubeSku: "TB-CL-8OZ", finalization: null },
+  { batchId: "B-2015", po: "PO-2015", sku: "ACC-COMB", product: "Hair Comb", method: "Direct Purchase", linkedTubeSku: null, finalization: { finalBaseTotalCost: 5500, finalQty: 5000, finalizedBy: "Sr Finance Officer", finalizedAt: "2026-04-30" } },
+  { batchId: "B-2016", po: "PO-2016", sku: "ACC-BRUSH", product: "Hair Brush", method: "Direct Purchase", linkedTubeSku: null, finalization: null },
+];
