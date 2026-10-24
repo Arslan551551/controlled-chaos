@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { ModuleGate, ModuleHead, Section, Source } from "@/components/cc/ui";
+import { ReportBuilder } from "@/components/pages/ReportBuilder";
 import { addDays, monthKey } from "@/lib/engine/dates";
 import { consignmentPosition } from "@/lib/engine/distributors";
 import { monthlyCost } from "@/lib/engine/operations";
@@ -502,6 +503,10 @@ function ReportsContent() {
         <Source>Built from the same live data as every screen</Source>
       </ModuleHead>
 
+      <ReportBuilder />
+
+      <div className="section-kicker" style={{ margin: "18px 0 10px" }}>REPORT LIBRARY</div>
+
       {GROUPS.map((g) => {
         const items = reports.filter((r) => r.group === g);
         if (items.length === 0) return null;
@@ -520,7 +525,7 @@ function ReportsContent() {
         );
       })}
 
-      <div className="notice">Need another report? Tell Claude what the CEO asks for and it gets added here.</div>
+      <div className="notice">Need another report? Build it above and save it, or tell Claude what the CEO asked and it gets added here as a one-click report.</div>
 
       {active ? (
         <Section
