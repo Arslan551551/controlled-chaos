@@ -714,3 +714,94 @@ describe("weekly cash schedule", () => {
     expect(weeks[2]!.opening).toBeCloseTo(88929.7, 2);
   });
 });
+
+describe("cash expected vs actual", () => {
+  it("compares plan with bank movements week by week", async () => {
+    const { cashExpectedVsActual } = await import("./finance.ts");
+    const plan = [
+      {
+        id: "a",
+        date: "2026-10-13",
+        direction: "in" as const,
+        category: "Marketplace Payout" as const,
+        description: "Amazon",
+        amount: 1000,
+        source: "Payout Forecast" as const,
+      },
+      {
+        id: "b",
+        date: "2026-10-14",
+        direction: "in" as const,
+        category: "Marketplace Payout" as const,
+        description: "Walmart",
+        amount: 500,
+        source: "Payout Forecast" as const,
+      },
+      {
+        id: "c",
+        date: "2026-10-15",
+        direction: "out" as const,
+        category: "Non-PO Payment" as const,
+        description: "Freight",
+        amount: 300,
+        source: "Payment Planner" as const,
+      },
+      {
+        id: "d",
+        date: "2026-10-28",
+        direction: "out" as const,
+        category: "Payroll" as const,
+        description: "Payroll",
+        amount: 2000,
+        source: "Manual" as const,
+      },
+    ];
+    const bank = [
+      {
+        id: "m1",
+        date: "2026-10-13",
+        direction: "in" as const,
+        category: "Marketplace Payout" as const,
+        description: "Amazon",
+        amount: 900,
+        matchedTo: "a",
+      },
+      {
+        id: "m2",
+        date: "2026-10-15",
+        direction: "out" as const,
+        category: "Non-PO Payment" as const,
+        description: "Freight",
+        amount: 350,
+        matchedTo: "c",
+      },
+      {
+        id: "m3",
+        date: "2026-10-16",
+        direction: "out" as const,
+        category: "Other Payment" as const,
+        description: "Fee",
+        amount: 50,
+        matchedTo: null,
+      },
+    ];
+    // asOf Wed 21 Oct: last week = 12–18 Oct
+    const weeks = cashExpectedVsActual(10000, plan, bank, "2026-10-21", 1, 2);
+    expect(weeks.map((w) => w.kind)).toEqual(["past", "current", "future"]);
+    const past = weeks[0]!;
+    expect(past).toMatchObject({
+      expectedIn: 1500,
+      actualIn: 900,
+      expectedOut: 300,
+      actualOut: 400,
+    });
+    const status = Object.fromEntries(past.lines.map((l) => [l.id, l.status]));
+    expect(status).toEqual({ a: "Partly received", b: "Late", c: "Paid more", m3: "Unplanned" });
+    // Real balance at end of last week = today's balance (nothing moved since).
+    expect(past.closing).toBe(10000);
+    // This week: late Walmart payout still expected → +500.
+    expect(weeks[1]!.closing).toBe(10500);
+    // Next week: payroll −2000.
+    expect(weeks[2]!.closing).toBe(8500);
+  });
+});

@@ -1,275 +1,564 @@
-// Home — one screen that pulls from every area: money first, then sales & profit,
-// then a single "Needs attention" list. Every tile and item opens the right tab.
-// Each role only sees the parts it has access to.
+// Home — in order of priority: purchase orders, cash, marketing, then everything else.
+// Each block is one visual summary with a link into the page where the work is done.
+// Every role only sees the blocks it has access to.
 
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, type ReactNode } from "react";
+import { Link } from "@tanstack/react-router";
+import { useState, type ReactNode } from "react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-import { access, MODULES, ROLE_PERSON, sectionOf, type ModuleId, type Role } from "@/lib/access";
+import { SOON_DAYS, useAttentionItems, type Item } from "@/components/cc/attention";
+import { access, ROLE_PERSON, type ModuleId, type Role } from "@/lib/access";
 import {
   LAST_FULL_MONTH,
   useArInvoices,
+  useCashCompare,
   useCashFlow,
-  useHealth,
   useMarketing,
-  useOutflowRecords,
   usePayments,
   useProfitability,
-  useSalesCash,
 } from "@/lib/derived";
-import { arPosition, daysOverdue, openUsd } from "@/lib/engine/ar";
-import { analyzeCampaign } from "@/lib/engine/campaigns";
-import { addDays, formatDate } from "@/lib/engine/dates";
-import { sheetProgress, sheetVariances } from "@/lib/engine/operations";
-import { reconcileOutflows, reconSummary } from "@/lib/engine/outflows";
+import { arPosition } from "@/lib/engine/ar";
+import { addDays, daysBetween, formatDate } from "@/lib/engine/dates";
+import { sheetProgress } from "@/lib/engine/operations";
 import { calculateCommission } from "@/lib/engine/people";
+import { remainingQty, type SkuPlan } from "@/lib/engine/planning";
 import { int, money, monthLabel, pct, usd, usdK } from "@/lib/format";
 import { HEALTH_TARGETS } from "@/lib/sample/finance";
-import { useCosting, usePlanning, useStore } from "@/lib/store";
+import { usePlanning, useStore } from "@/lib/store";
 
-const PREV_MONTH = ["2026-08"];
-const SOON_DAYS = 14;
-
-type Area = "Money" | "Stock" | "Sales & Marketing" | "Profit" | "Team";
-type Level = "critical" | "warning" | "info";
-
-interface Item {
-  key: string;
-  level: Level;
-  area: Area;
-  title: string;
-  detail: ReactNode;
-  value: string;
-  to: string;
-  action: string;
-}
-
-const LEVEL_ORDER: Record<Level, number> = { critical: 0, warning: 1, info: 2 };
-const LEVEL_CLASS: Record<Level, string> = {
-  critical: "critical",
-  warning: "warning",
-  info: "info",
-};
-const LEVEL_BADGE: Record<Level, ReactNode> = {
-  critical: <span className="badge b-red">Urgent</span>,
-  warning: <span className="badge b-amber">Soon</span>,
-  info: <span className="badge b-blue">FYI</span>,
-};
+const PO_KEYS = ["po-", "tube-", "ps-", "tr-"];
+const CASH_KEYS = ["late-", "due-soon", "ar-", "cash-"];
+const MKT_KEYS = ["camp-"];
+const has = (i: Item, keys: string[]) => keys.some((k) => i.key.startsWith(k));
 
 export function DashboardPage() {
   const { role } = useStore();
   const can = (m: ModuleId) => access(role, m) !== null;
-  const showMoney = can("cash-flow") || can("payments") || can("ar");
-  const showSales = can("profitability") || can("marketing") || can("health");
+  const items = useAttentionItems();
   return (
-    <section className="screen active" id="screen-dashboard">
-      {showMoney ? <MoneyBand /> : null}
-      {showSales ? <SalesBand /> : null}
-      {!showMoney && !showSales ? <WorkspaceBand role={role} /> : null}
-      <div className="dashboard-focus">
-        <NeedsAttention />
-        <SidePanel />
-      </div>
+    <section className="screen active home" id="screen-dashboard">
+      <HomeHeader items={items} />
+      {can("projection") ? <PoBlock /> : null}
+      {can("cash-flow") || can("payments") || can("ar") ? (
+        <CashBlock items={items.filter((i) => has(i, CASH_KEYS))} />
+      ) : null}
+      {can("marketing") ? <MarketingBlock items={items.filter((i) => has(i, MKT_KEYS))} /> : null}
+      <WorkspaceBlock role={role} />
+      <OtherBlock items={items.filter((i) => !has(i, [...PO_KEYS, ...CASH_KEYS, ...MKT_KEYS]))} />
     </section>
   );
 }
 
-function Tile({
-  label,
-  value,
-  note,
-  to,
-  bad,
-}: {
-  label: string;
-  value: ReactNode;
-  note: ReactNode;
-  to: string;
-  bad?: boolean;
-}) {
-  const navigate = useNavigate();
-  return (
-    <button className="card kpi kpi-click" type="button" onClick={() => navigate({ to })}>
-      <div>
-        <div className="kpi-label">{label}</div>
-        <div className={`kpi-value${bad ? " bad" : ""}`}>{value}</div>
-        <div className="kpi-note">{note}</div>
-      </div>
-    </button>
-  );
-}
+// ---------------------------------------------------------------- shared pieces
 
-function Band({ title, children }: { title: string; children: ReactNode }) {
+function Block({
+  icon,
+  tone,
+  title,
+  summary,
+  link,
+  children,
+}: {
+  icon: string;
+  tone: "red" | "blue" | "green" | "purple" | "amber";
+  title: string;
+  summary: ReactNode;
+  link?: { to: string; label: string } | undefined;
+  children: ReactNode;
+}) {
   return (
-    <div className="home-band">
-      <div className="home-band-title">{title}</div>
-      <div className="home-kpis">{children}</div>
+    <div className="hs">
+      <div className="hs-head">
+        <div className={`hs-icon t-${tone}`}>{icon}</div>
+        <div className="hs-title">
+          <h2>{title}</h2>
+          <p>{summary}</p>
+        </div>
+        {link ? (
+          <Link className="hs-link" to={link.to}>
+            {link.label} →
+          </Link>
+        ) : null}
+      </div>
+      {children}
     </div>
   );
 }
 
-// ---------------------------------------------------------------- money (top of Home)
+function Stat({
+  label,
+  value,
+  note,
+  to,
+  tone,
+}: {
+  label: string;
+  value: ReactNode;
+  note?: ReactNode;
+  to: string;
+  tone?: "bad" | "good" | undefined;
+}) {
+  return (
+    <Link className="hstat" to={to}>
+      <span className="hstat-label">{label}</span>
+      <strong className={tone ?? ""}>{value}</strong>
+      {note ? <span className="hstat-note">{note}</span> : null}
+    </Link>
+  );
+}
 
-function MoneyBand() {
+function ItemRow({ i }: { i: Item }) {
+  return (
+    <Link className={`hitem l-${i.level}`} to={i.to}>
+      <span className="hitem-dot" />
+      <span className="hitem-copy">
+        <strong>{i.title}</strong>
+        <small>{i.detail}</small>
+      </span>
+      <span className="hitem-value">{i.value}</span>
+    </Link>
+  );
+}
+
+function HomeHeader({ items }: { items: Item[] }) {
+  const { role, asOf } = useStore();
+  const urgent = items.filter((i) => i.level === "critical").length;
+  const day = new Date(`${asOf}T12:00:00Z`).toLocaleDateString("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+  return (
+    <div className="home-hero">
+      <div>
+        <span className="home-hero-date">{day}</span>
+        <h1>Good morning{role === "CEO" ? "" : `, ${role}`}</h1>
+        <p>
+          {urgent
+            ? `${urgent} urgent item${urgent === 1 ? "" : "s"} and ${items.length - urgent} more to look at today.`
+            : items.length
+              ? `Nothing urgent. ${items.length} item${items.length === 1 ? "" : "s"} to look at.`
+              : "Everything is on track."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- 1. purchase orders
+
+const RUNWAY_MAX = 270;
+const COVER_TRIGGER = 135;
+
+function Runway({ p }: { p: SkuPlan }) {
+  const days = p.daysOfStockLeft ?? RUNWAY_MAX;
+  const pos = (d: number) => `${Math.min(100, (d / RUNWAY_MAX) * 100)}%`;
+  const tone =
+    p.poStatus === "PO Now" || p.stockoutBeforeArrival
+      ? "bad"
+      : p.poStatus === "No PO Required"
+        ? "good"
+        : "warn";
+  return (
+    <div className="runway" title={`${days} days of stock left`}>
+      <div className={`runway-fill ${tone}`} style={{ width: pos(days) }} />
+      <div className="runway-mark lead" style={{ left: pos(p.leadTimeDays) }}>
+        <span>lead {p.leadTimeDays}d</span>
+      </div>
+      <div className="runway-mark trigger" style={{ left: pos(COVER_TRIGGER) }}>
+        <span>{COVER_TRIGGER}d</span>
+      </div>
+    </div>
+  );
+}
+
+const PO_LABEL: Record<SkuPlan["poStatus"], { text: string; cls: string }> = {
+  "PO Now": { text: "Order now", cls: "b-red" },
+  "Additional PO Required": { text: "Order more", cls: "b-amber" },
+  "PO Due Soon": { text: "Due soon", cls: "b-blue" },
+  "No PO Required": { text: "OK", cls: "b-green" },
+};
+const PO_ORDER: Record<SkuPlan["poStatus"], number> = {
+  "PO Now": 0,
+  "Additional PO Required": 1,
+  "PO Due Soon": 2,
+  "No PO Required": 3,
+};
+
+function PoBlock() {
+  const { data, asOf } = useStore();
+  const plan = usePlanning();
+  const [showAll, setShowAll] = useState(false);
+  const needs = [...plan.finishedGoods]
+    .filter((p) => p.poStatus !== "No PO Required")
+    .sort(
+      (a, b) =>
+        PO_ORDER[a.poStatus] - PO_ORDER[b.poStatus] ||
+        (a.daysOfStockLeft ?? 999) - (b.daysOfStockLeft ?? 999),
+    );
+  const ok = plan.finishedGoods.filter((p) => p.poStatus === "No PO Required");
+  const rows = showAll ? [...needs, ...ok] : needs;
+  const now = needs.filter((p) => p.poStatus === "PO Now").length;
+  const incoming = data.purchaseOrders
+    .filter((p) => p.status === "Open" && remainingQty(p) > 0)
+    .sort((a, b) => (a.eta ?? "9999").localeCompare(b.eta ?? "9999"));
+  const transfers = plan.finishedGoods.filter((p) => p.transfer.status === "Transfer Required");
+  const tubes = plan.tubes.filter((t) => t.status === "Open Tube PO");
+  const desc = (sku: string) => data.skus.find((s) => s.sku === sku)?.description ?? sku;
+
+  return (
+    <Block
+      icon="PO"
+      tone="red"
+      title="Purchase orders"
+      summary={
+        needs.length ? (
+          <>
+            <strong>{needs.length} products need a PO</strong> ({now} right now) · {incoming.length}{" "}
+            POs on the way · {tubes.length} tube POs · {transfers.length} transfers
+          </>
+        ) : (
+          "Stock cover is healthy for every product."
+        )
+      }
+      link={{ to: "/projection", label: "Open PO planning" }}
+    >
+      <div className="po-grid">
+        <div className="po-runways">
+          <div className="po-legend">
+            <span>Days of stock left</span>
+            <span className="muted">
+              │ lead = supplier lead time · {COVER_TRIGGER}d = reorder trigger
+            </span>
+          </div>
+          {rows.map((p) => (
+            <Link key={p.sku} to="/projection" className="po-row">
+              <div className="po-name">
+                <strong>{p.description}</strong>
+                <small>
+                  {p.sku} · selling {int(p.projectionBurn)}/day
+                </small>
+              </div>
+              <div className="po-bar">
+                <Runway p={p} />
+                <small>
+                  <strong>{p.daysOfStockLeft ?? "—"} days</strong>
+                  {p.stockoutBeforeArrival ? " · runs out before a new PO would arrive" : ""}
+                  {p.nextInboundEta ? ` · next delivery ${formatDate(p.nextInboundEta)}` : ""}
+                </small>
+              </div>
+              <div className="po-action">
+                <span className={`badge ${PO_LABEL[p.poStatus].cls}`}>
+                  {PO_LABEL[p.poStatus].text}
+                </span>
+                {p.recommendedQty > 0 ? <strong>{int(p.recommendedQty)} units</strong> : null}
+                {p.poOpenBy ? (
+                  p.poOpenBy < asOf ? (
+                    <small className="neg">
+                      overdue · {daysBetween(p.poOpenBy, asOf)} days late
+                    </small>
+                  ) : (
+                    <small>order by {formatDate(p.poOpenBy)}</small>
+                  )
+                ) : null}
+              </div>
+            </Link>
+          ))}
+          {ok.length ? (
+            <button type="button" className="link-btn" onClick={() => setShowAll((x) => !x)}>
+              {showAll ? "Hide healthy products" : `Show ${ok.length} healthy products`}
+            </button>
+          ) : null}
+        </div>
+
+        <div className="po-side">
+          <h4>On the way</h4>
+          {incoming.length === 0 ? <p className="muted">No open POs.</p> : null}
+          {incoming.map((po) => {
+            const total = po.eta ? Math.max(1, daysBetween(po.openDate, po.eta)) : 1;
+            const gone = po.eta ? Math.max(0, daysBetween(po.openDate, asOf)) : 0;
+            const left = po.eta ? daysBetween(asOf, po.eta) : null;
+            return (
+              <Link key={po.po} to="/vendor" className="eta-row">
+                <div className="eta-top">
+                  <strong>{desc(po.sku)}</strong>
+                  <span>{int(remainingQty(po))}</span>
+                </div>
+                <div className="eta-track">
+                  <div style={{ width: `${Math.min(100, (gone / total) * 100)}%` }} />
+                </div>
+                <small>
+                  {po.po} · {po.supplier} ·{" "}
+                  {po.eta
+                    ? left !== null && left < 0
+                      ? `late by ${-left} days`
+                      : `arrives ${formatDate(po.eta)} (${left}d)`
+                    : "no ETA"}
+                </small>
+              </Link>
+            );
+          })}
+          {tubes.length || transfers.length ? (
+            <div className="po-chips">
+              {tubes.map((t) => (
+                <Link key={t.tubeSku} to="/projection" className="chip purple">
+                  Tube PO · {t.description} · by {formatDate(t.tubeOpenBy)}
+                </Link>
+              ))}
+              {transfers.map((t) => (
+                <Link key={t.sku} to="/projection" className="chip blue">
+                  Move to Brentwood · {t.description}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </Block>
+  );
+}
+
+// ---------------------------------------------------------------- 2. cash
+
+function CashBlock({ items }: { items: Item[] }) {
   const { role, asOf } = useStore();
   const can = (m: ModuleId) => access(role, m) !== null;
   const cash = useCashFlow();
+  const weeks = useCashCompare(3, 8);
   const payments = usePayments();
   const ar = arPosition(useArInvoices(), asOf);
-  const sc = useSalesCash();
+  const buffer = HEALTH_TARGETS.minimumCashBuffer;
 
-  const lowest = [...cash.months].sort((a, b) => a.closing - b.closing)[0];
+  const lowest = [...weeks].sort((a, b) => a.closing - b.closing)[0];
   const soon = addDays(asOf, SOON_DAYS);
   const due = payments.all.filter((p) => p.status !== "Paid" && p.dueDate && p.dueDate <= soon);
-  const late = due.filter((p) => p.dueDate! < asOf);
-  const notReceived = sc.reduce((a, r) => a + r.outstanding, 0);
+  const thisWeek = weeks.find((w) => w.kind === "current");
+  const chart = weeks.map((w) => ({
+    week: formatDate(w.weekStart).replace(/ \d{4}$/, ""),
+    Actual: w.kind === "future" ? null : w.closing,
+    Projected: w.kind === "past" ? null : w.closing,
+  }));
 
   return (
-    <Band title="Cash & money">
-      {can("cash-flow") ? (
-        <Tile
-          label="Cash in bank"
-          value={usdK(cash.opening)}
-          note="All accounts · QuickBooks"
-          to="/cash-flow"
-        />
-      ) : null}
-      {can("cash-flow") && lowest ? (
-        <Tile
-          label="Lowest cash, next 3 months"
-          value={usdK(lowest.closing)}
-          note={`End of ${monthLabel(lowest.month)} · buffer ${usdK(HEALTH_TARGETS.minimumCashBuffer)}`}
-          to="/cash-flow"
-          bad={lowest.closing < HEALTH_TARGETS.minimumCashBuffer}
-        />
-      ) : null}
-      {can("payments") ? (
-        <Tile
-          label={`To pay, next ${SOON_DAYS} days`}
-          value={usdK(due.reduce((a, p) => a + p.amount, 0))}
-          note={`${due.length} payments${late.length ? ` · ${late.length} overdue` : ""}`}
-          to="/payments"
-          bad={late.length > 0}
-        />
-      ) : null}
-      {can("ar") ? (
-        <Tile
-          label="Owed to us"
-          value={usdK(ar.open)}
-          note={`${usdK(ar.overdue)} overdue · ${usdK(ar.over60)} over 60 days`}
-          to="/ar"
-          bad={ar.over60 > 0}
-        />
-      ) : null}
-      {can("sales-cash") ? (
-        <Tile
-          label="Sales not yet paid out"
-          value={usdK(notReceived)}
-          note="Marketplace payouts still to land"
-          to="/sales-cash"
-        />
-      ) : null}
-    </Band>
-  );
-}
-
-// ---------------------------------------------------------------- sales & profit
-
-function SalesBand() {
-  const { role } = useStore();
-  const can = (m: ModuleId) => access(role, m) !== null;
-  const now = useProfitability(LAST_FULL_MONTH).rows;
-  const prev = useProfitability(PREV_MONTH).rows;
-  const mkt = useMarketing(LAST_FULL_MONTH);
-  const health = useHealth();
-
-  const sales = now.reduce((a, r) => a + r.netRevenue, 0);
-  const prevSales = prev.reduce((a, r) => a + r.netRevenue, 0);
-  const profit = now.reduce((a, r) => a + r.netProfit, 0);
-  const change = prevSales ? (sales - prevSales) / prevSales : 0;
-  const month = monthLabel(LAST_FULL_MONTH[0]!);
-  const critical = health.signals.filter((s) => s.severity === "critical").length;
-
-  return (
-    <Band title={`Sales & profit · ${month}`}>
-      {can("profitability") ? (
+    <Block
+      icon="$"
+      tone="green"
+      title="Cash"
+      summary={
         <>
-          <Tile
-            label="Net sales"
-            value={usdK(sales)}
-            note={`${change >= 0 ? "▲" : "▼"} ${pct(Math.abs(change))} vs ${monthLabel(PREV_MONTH[0]!)}`}
-            to="/profitability"
-            bad={change < 0}
-          />
-          <Tile
-            label="Net profit"
-            value={usdK(profit)}
-            note={`${pct(sales ? profit / sales : 0)} margin · target ${pct(HEALTH_TARGETS.targetNetMarginPct, 0)}`}
-            to="/profitability"
-            bad={sales ? profit / sales < HEALTH_TARGETS.targetNetMarginPct : true}
-          />
+          <strong>{usd(cash.opening)} in the bank</strong>
+          {lowest ? ` · lowest point ${usdK(lowest.closing)} in the next 8 weeks` : ""}
+          {thisWeek
+            ? ` · this week ${usdK(thisWeek.actualIn)} received of ${usdK(thisWeek.expectedIn)} expected`
+            : ""}
         </>
-      ) : null}
-      {can("marketing") ? (
-        <Tile
-          label="Ad return (ROAS)"
-          value={mkt.total.roas.toFixed(2)}
-          note={`Spend ${usdK(mkt.total.spend)} · target ${HEALTH_TARGETS.targetRoas.toFixed(1)}`}
-          to="/marketing"
-          bad={mkt.total.roas < HEALTH_TARGETS.targetRoas}
-        />
-      ) : null}
-      {can("health") ? (
-        <Tile
-          label="Company health"
-          value={`${health.score}/100`}
-          note={`${critical} urgent issue${critical === 1 ? "" : "s"}`}
-          to="/health"
-          bad={health.score < 60}
-        />
-      ) : null}
-    </Band>
+      }
+      link={can("cash-flow") ? { to: "/cash-flow", label: "Open cash flow" } : undefined}
+    >
+      <div className="hstats">
+        {can("cash-flow") ? (
+          <Stat
+            label="Cash now"
+            value={usdK(cash.opening)}
+            note="QuickBooks banks"
+            to="/cash-flow"
+          />
+        ) : null}
+        {can("cash-flow") && lowest ? (
+          <Stat
+            label="Lowest, next 8 weeks"
+            value={usdK(lowest.closing)}
+            note={`buffer ${usdK(buffer)}`}
+            to="/cash-flow"
+            tone={lowest.closing < buffer ? "bad" : undefined}
+          />
+        ) : null}
+        {can("payments") ? (
+          <Stat
+            label={`To pay, ${SOON_DAYS} days`}
+            value={usdK(due.reduce((a, p) => a + p.amount, 0))}
+            note={`${due.length} payments`}
+            to="/payments"
+          />
+        ) : null}
+        {can("ar") ? (
+          <Stat
+            label="Owed to us"
+            value={usdK(ar.open)}
+            note={`${usdK(ar.overdue)} overdue`}
+            to="/ar"
+            tone={ar.over60 > 0 ? "bad" : undefined}
+          />
+        ) : null}
+      </div>
+      <div className="cash-grid">
+        {can("cash-flow") ? (
+          <div className="cash-chart">
+            <div style={{ width: "100%", height: 220 }}>
+              <ResponsiveContainer>
+                <AreaChart data={chart} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="cashFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#148a60" stopOpacity={0.25} />
+                      <stop offset="100%" stopColor="#148a60" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#eef1f5" vertical={false} />
+                  <XAxis dataKey="week" tick={{ fontSize: 11 }} interval={1} />
+                  <YAxis
+                    tickFormatter={(v: number) => usdK(v)}
+                    tick={{ fontSize: 11 }}
+                    width={52}
+                  />
+                  <Tooltip formatter={(v) => usd(Number(v))} />
+                  <ReferenceLine
+                    y={buffer}
+                    stroke="#cf3f4f"
+                    strokeDasharray="4 4"
+                    label={{ value: "buffer", fontSize: 11, fill: "#cf3f4f", position: "right" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Actual"
+                    stroke="#148a60"
+                    strokeWidth={2.5}
+                    fill="url(#cashFill)"
+                    connectNulls
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="Projected"
+                    stroke="#148a60"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    fill="none"
+                    connectNulls
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <small className="muted">
+              Bank balance by week · solid = actual, dashed = projected
+            </small>
+          </div>
+        ) : null}
+        <div className="cash-items">
+          <h4>Needs action</h4>
+          {items.length === 0 ? <p className="muted">Nothing overdue.</p> : null}
+          {items.slice(0, 6).map((i) => (
+            <ItemRow key={i.key} i={i} />
+          ))}
+          {items.length > 6 ? (
+            <Link className="hs-link" to="/payments">
+              {items.length - 6} more →
+            </Link>
+          ) : null}
+        </div>
+      </div>
+    </Block>
   );
 }
 
-// ---------------------------------------------------------------- roles without finance access
+// ---------------------------------------------------------------- 3. marketing
 
-function WorkspaceBand({ role }: { role: Role }) {
+function MarketingBlock({ items }: { items: Item[] }) {
+  const { role } = useStore();
+  const mkt = useMarketing(LAST_FULL_MONTH);
+  const profit = useProfitability(LAST_FULL_MONTH).rows;
+  const target = HEALTH_TARGETS.targetRoas;
+  const platforms = mkt.byPlatform.filter((p) => p.spend > 0).sort((a, b) => b.spend - a.spend);
+  const max = Math.max(target * 1.6, ...platforms.map((p) => p.roas));
+  const sales = profit.reduce((a, r) => a + r.netRevenue, 0);
+  const net = profit.reduce((a, r) => a + r.netProfit, 0);
+  const month = monthLabel(LAST_FULL_MONTH[0]!);
+
+  return (
+    <Block
+      icon="◎"
+      tone="purple"
+      title="Marketing"
+      summary={
+        <>
+          <strong>
+            ROAS {mkt.total.roas.toFixed(2)} on {usd(mkt.total.spend)} ad spend
+          </strong>{" "}
+          in {month} · TACoS {pct(mkt.total.tacos)}
+          {access(role, "profitability")
+            ? ` · net sales ${usdK(sales)}, net profit ${usdK(net)} (${pct(sales ? net / sales : 0)})`
+            : ""}
+        </>
+      }
+      link={{ to: "/marketing", label: "Open ads & campaigns" }}
+    >
+      <div className="mkt-grid">
+        <div className="roas-bars">
+          {platforms.map((p) => {
+            const good = p.roas >= target;
+            return (
+              <Link key={p.key} to="/marketing" className="roas-row">
+                <span className="roas-name">{p.key}</span>
+                <div className="roas-track">
+                  <div
+                    className={`roas-fill ${good ? "good" : "bad"}`}
+                    style={{ width: `${(p.roas / max) * 100}%` }}
+                  />
+                  <div className="roas-target" style={{ left: `${(target / max) * 100}%` }} />
+                </div>
+                <strong className={good ? "" : "neg"}>{p.roas.toFixed(2)}</strong>
+                <small>{usdK(p.spend)}</small>
+              </Link>
+            );
+          })}
+          <small className="muted">Return on ad spend by platform · line = target {target}</small>
+        </div>
+        <div className="cash-items">
+          <h4>Campaigns</h4>
+          {items.length === 0 ? <p className="muted">No campaign lost money.</p> : null}
+          {items.slice(0, 5).map((i) => (
+            <ItemRow key={i.key} i={i} />
+          ))}
+        </div>
+      </div>
+    </Block>
+  );
+}
+
+// ---------------------------------------------------------------- roles without the blocks above
+
+function WorkspaceBlock({ role }: { role: Role }) {
   const { data } = useStore();
   const person = ROLE_PERSON[role];
-  const plan = usePlanning();
-  const mkt = useMarketing(LAST_FULL_MONTH);
-  const tiles: ReactNode[] = [];
 
   if (role === "Warehouse") {
     const sheet = data.stockCounts.find((s) => s.status === "In Progress");
     const prog = sheet ? sheetProgress(sheet) : null;
-    const transfers = plan.finishedGoods.filter((p) => p.transfer.status === "Transfer Required");
-    const inbound = data.purchaseOrders.filter(
-      (p) => p.status === "Open" && p.eta && p.eta <= "2026-11-30",
-    );
-    tiles.push(
-      <Tile
-        key="count"
-        label="This month's stock count"
-        value={prog ? `${prog.counted}/${prog.total}` : "Not started"}
-        note={sheet ? `${sheet.location} · ${sheet.month}` : "Start the count sheet"}
-        to="/stock-count"
-      />,
-      <Tile
-        key="transfers"
-        label="Transfers Georgia → Brentwood"
-        value={transfers.length}
-        note={transfers.map((t) => t.sku).join(", ") || "None due"}
-        to="/projection"
-      />,
-      <Tile
-        key="inbound"
-        label="Inbound POs next 5 weeks"
-        value={inbound.length}
-        note={inbound.map((p) => `${p.po} ${formatDate(p.eta)}`).join(" · ") || "None"}
-        to="/projection"
-      />,
+    return (
+      <Block
+        icon="✓"
+        tone="blue"
+        title="Your work"
+        summary="This month's stock count and stock movements"
+        link={{ to: "/stock-count", label: "Open stock count" }}
+      >
+        <div className="hstats">
+          <Stat
+            label="Stock count"
+            value={prog ? `${prog.counted}/${prog.total}` : "Not started"}
+            note={sheet ? `${sheet.location} · ${sheet.month}` : "Start the count sheet"}
+            to="/stock-count"
+          />
+        </div>
+      </Block>
     );
   }
   if (role === "Salon Sales Rep") {
@@ -277,457 +566,64 @@ function WorkspaceBand({ role }: { role: Role }) {
       (l) => l.order.repId === person,
     );
     const month = lines.filter((l) => l.order.date.startsWith("2026-10"));
-    tiles.push(
-      <Tile
-        key="comm"
-        label="My commission · Oct"
-        value={money(month.reduce((a, l) => a + l.commission, 0))}
-        note={`${month.length} orders`}
-        to="/salons"
-      />,
-      <Tile
-        key="pending"
-        label="Orders waiting for Finance"
-        value={lines.filter((l) => l.order.status === "Pending Review").length}
-        note="Pending review"
-        to="/salons"
-      />,
-      <Tile
-        key="tag"
-        label="Shopify orders to tag"
-        value={data.untaggedShopifyOrders.length}
-        note="Tag them to your salons"
-        to="/salons"
-      />,
+    const mine = data.salonAccounts.filter((a) => a.repId === person);
+    return (
+      <Block
+        icon="✂"
+        tone="purple"
+        title="My salons"
+        summary={`${mine.length} salons · Shopify orders are tagged to you automatically`}
+        link={{ to: "/salons", label: "Onboard a new salon" }}
+      >
+        <div className="hstats">
+          <Stat
+            label="My commission · Oct"
+            value={money(month.reduce((a, l) => a + l.commission, 0))}
+            note={`${month.length} orders`}
+            to="/salons"
+          />
+          <Stat
+            label="Waiting for Finance"
+            value={lines.filter((l) => l.order.status === "Pending Review").length}
+            note="orders pending review"
+            to="/salons"
+          />
+          <Stat
+            label="Shopify orders to tag"
+            value={data.untaggedShopifyOrders.length}
+            note="no matching salon yet"
+            to="/salons"
+          />
+        </div>
+      </Block>
     );
   }
-  if (role === "Consultant") {
-    tiles.push(
-      <Tile
-        key="roas"
-        label="Ad return (ROAS) · Sep"
-        value={mkt.total.roas.toFixed(2)}
-        note={`Spend ${usd(mkt.total.spend)} · TACoS ${pct(mkt.total.tacos)}`}
-        to="/marketing"
-      />,
-      <Tile key="kpi" label="My KPI" value="View" note="ROAS and TACoS vs target" to="/kpis" />,
-    );
-  }
-  if (tiles.length === 0) return null;
-  return <Band title={`Your numbers · ${role}`}>{tiles}</Band>;
+  return null;
 }
 
-// ---------------------------------------------------------------- needs attention (all areas)
+// ---------------------------------------------------------------- 4. everything else
 
-function useAttentionItems(): Item[] {
-  const { role, data, asOf } = useStore();
-  const plan = usePlanning();
-  const { batches, unitCost } = useCosting();
-  const payments = usePayments();
-  const cash = useCashFlow();
-  const arInvoices = useArInvoices();
-  const records = useOutflowRecords();
-  const health = useHealth();
-
-  return useMemo(() => {
-    const can = (m: ModuleId) => access(role, m) !== null;
-    const items: Item[] = [];
-
-    // Money
-    if (can("cash-flow")) {
-      for (const m of cash.months.filter((x) => x.closing < HEALTH_TARGETS.minimumCashBuffer))
-        items.push({
-          key: `cash-${m.month}`,
-          level: m.closing < 0 ? "critical" : "warning",
-          area: "Money",
-          title: `Cash drops to ${usdK(m.closing)} at end of ${monthLabel(m.month)}`,
-          detail: `Below the ${usdK(HEALTH_TARGETS.minimumCashBuffer)} safety buffer — move or delay payments`,
-          value: usdK(m.closing),
-          to: "/cash-flow",
-          action: "See cash flow →",
-        });
-    }
-    if (can("payments")) {
-      const soon = addDays(asOf, SOON_DAYS);
-      const open = payments.all.filter((p) => p.status !== "Paid" && p.dueDate);
-      for (const p of open.filter((x) => x.dueDate! < asOf))
-        items.push({
-          key: `late-${p.id}`,
-          level: "critical",
-          area: "Money",
-          title: `Overdue payment · ${p.vendor}`,
-          detail: `${p.reference} · ${p.description} · was due ${formatDate(p.dueDate)}`,
-          value: usd(p.amount),
-          to: "/payments",
-          action: "Pay or reschedule →",
-        });
-      const upcoming = open.filter((x) => x.dueDate! >= asOf && x.dueDate! <= soon);
-      if (upcoming.length)
-        items.push({
-          key: "due-soon",
-          level: "warning",
-          area: "Money",
-          title: `${upcoming.length} payments due in the next ${SOON_DAYS} days`,
-          detail: upcoming
-            .slice(0, 3)
-            .map((p) => `${p.vendor} ${formatDate(p.dueDate)}`)
-            .join(" · "),
-          value: usd(upcoming.reduce((a, p) => a + p.amount, 0)),
-          to: "/payments",
-          action: "Approve payments →",
-        });
-    }
-    if (can("ar")) {
-      const me = ROLE_PERSON[role];
-      const scoped =
-        role === "Salon Sales Rep" ? arInvoices.filter((i) => i.ownerId === me) : arInvoices;
-      const byCustomer = new Map<string, { name: string; amount: number; days: number }>();
-      for (const i of scoped) {
-        const d = daysOverdue(i, asOf);
-        const o = openUsd(i);
-        if (d <= 0 || o <= 0) continue;
-        const c = byCustomer.get(i.customerId) ?? { name: i.customerName, amount: 0, days: 0 };
-        c.amount += o;
-        c.days = Math.max(c.days, d);
-        byCustomer.set(i.customerId, c);
-      }
-      for (const [id, c] of byCustomer)
-        items.push({
-          key: `ar-${id}`,
-          level: c.days > 60 ? "critical" : "warning",
-          area: "Money",
-          title: `${c.name} owes us ${usd(c.amount)} overdue`,
-          detail: `Oldest invoice ${c.days} days late`,
-          value: usd(c.amount),
-          to: "/ar",
-          action: "Chase →",
-        });
-    }
-
-    // Stock
-    if (can("projection")) {
-      for (const p of plan.finishedGoods) {
-        if (p.poStatus === "PO Now" || p.poStatus === "Additional PO Required")
-          items.push({
-            key: `po-${p.sku}`,
-            level: p.poStatus === "PO Now" ? "critical" : "warning",
-            area: "Stock",
-            title: `Reorder ${p.description}`,
-            detail: `${p.sku} · ${p.daysOfStockLeft ?? "—"} days of stock left · selling ${int(p.projectionBurn)}/day`,
-            value: `${int(p.recommendedQty)} units`,
-            to: "/projection",
-            action: "Open PO →",
-          });
-        if (p.transfer.status === "Transfer Required")
-          items.push({
-            key: `tr-${p.sku}`,
-            level: "info",
-            area: "Stock",
-            title: `Move ${p.description} from Georgia to Brentwood`,
-            detail: `Brentwood has ${p.transfer.brentwoodDaysLeft} days of stock`,
-            value: "Transfer",
-            to: "/projection",
-            action: "View →",
-          });
-        for (const ps of p.pastDuePlanned)
-          items.push({
-            key: `ps-${ps.id}`,
-            level: "warning",
-            area: "Stock",
-            title: `Planned sale past due · ${p.description}`,
-            detail: `${ps.reference} · expected ${formatDate(ps.expectedDate)} — confirm, delay or mark fulfilled`,
-            value: `${int(ps.qty)} units`,
-            to: "/projection",
-            action: "Review →",
-          });
-      }
-      for (const t of plan.tubes.filter((x) => x.status === "Open Tube PO"))
-        items.push({
-          key: `tube-${t.tubeSku}`,
-          level: "warning",
-          area: "Stock",
-          title: `Order empty tubes · ${t.description}`,
-          detail: `Open by ${formatDate(t.tubeOpenBy)}`,
-          value: `${int(t.recommendedQty)} tubes`,
-          to: "/projection",
-          action: "Open PO →",
-        });
-    }
-    if (can("stock-count")) {
-      const masterUnits = (sku: string) => data.skus.find((s) => s.sku === sku)?.unitsPerBox ?? 0;
-      for (const sheet of data.stockCounts.filter((s) => s.status === "Sent to Finance")) {
-        const review = sheetVariances(sheet, unitCost, masterUnits).filter((l) => l.needsReview);
-        if (review.length)
-          items.push({
-            key: `count-${sheet.id}`,
-            level: "warning",
-            area: "Stock",
-            title: `Stock count differences · ${sheet.location}`,
-            detail: `${review.length} SKUs counted differently from ShipStation — check and adjust`,
-            value: usd(Math.abs(review.reduce((a, l) => a + (l.valueImpact ?? 0), 0))),
-            to: "/stock-count",
-            action: "Review count →",
-          });
-      }
-    }
-    if (can("outflows")) {
-      const s = reconSummary(
-        reconcileOutflows(data.stockOutflows, records, data.outflowResolutions, unitCost),
-      );
-      if (s.openItems)
-        items.push({
-          key: "outflows",
-          level: s.unexplainedValue > 1000 ? "critical" : "warning",
-          area: "Stock",
-          title: `${s.openItems} stock movements not explained`,
-          detail: `${int(s.unexplainedUnits)} units left the warehouse without a matching order`,
-          value: usd(s.unexplainedValue),
-          to: "/stock-outflows",
-          action: "Investigate →",
-        });
-    }
-    if (can("cogs") && role !== "CEO") {
-      const pending = batches.filter((b) => b.status === "Tentative");
-      if (pending.length)
-        items.push({
-          key: "cogs",
-          level: "info",
-          area: "Stock",
-          title: `${pending.length} product costs waiting to be finalised`,
-          detail: pending.map((b) => b.sku).join(", "),
-          value: `${pending.length}`,
-          to: "/cogs",
-          action: "Finalise →",
-        });
-    }
-
-    // Sales & marketing
-    if (can("marketing")) {
-      for (const a of data.campaigns.map((c) => analyzeCampaign(c, unitCost)))
-        if (a.verdict === "Lost money")
-          items.push({
-            key: `camp-${a.campaign.id}`,
-            level: "warning",
-            area: "Sales & Marketing",
-            title: `Campaign lost money · ${a.campaign.name}`,
-            detail: `${a.campaign.channel} · cost ${usd(a.totalCost)} · ROAS ${a.roas.toFixed(2)}`,
-            value: usd(a.incrementalProfit),
-            to: "/marketing",
-            action: "See why →",
-          });
-    }
-
-    // Profit (company health signals not already covered above)
-    if (can("health")) {
-      for (const s of health.signals)
-        if (s.severity === "critical" && s.area !== "Cash" && s.area !== "Collections")
-          items.push({
-            key: `h-${s.id}`,
-            level: "critical",
-            area: "Profit",
-            title: s.title,
-            detail: s.suggestion ?? s.detail,
-            value: s.monthlySaving > 0 ? `${usd(s.monthlySaving)}/mo` : s.area,
-            to: "/health",
-            action: "Details →",
-          });
-    }
-
-    // Team
-    if (access(role, "kpis") === "edit" && ROLE_PERSON[role]) {
-      const team = data.employees.filter(
-        (e) => e.managerId === ROLE_PERSON[role] && e.kind === "Employee",
-      );
-      const missing = team.filter(
-        (e) =>
-          !data.kpiReviews.some(
-            (r) => r.employeeId === e.id && r.month === "2026-10" && r.status === "Submitted",
-          ),
-      );
-      if (missing.length)
-        items.push({
-          key: "kpi-reviews",
-          level: "info",
-          area: "Team",
-          title: `${missing.length} KPI reviews to submit for October`,
-          detail: missing.map((e) => e.name).join(", "),
-          value: `${team.length - missing.length}/${team.length} done`,
-          to: "/kpis",
-          action: "Review →",
-        });
-    }
-
-    // View-only roles get a plain "View" link instead of an action they can't take.
-    const canEdit = (to: string) => {
-      const m = MODULES.find((x) => x.path === to);
-      return m ? access(role, m.id) === "edit" : false;
-    };
-    return items
-      .map((i) => (canEdit(i.to) ? i : { ...i, action: "View →" }))
-      .sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]);
-  }, [
-    role,
-    data,
-    asOf,
-    plan,
-    batches,
-    unitCost,
-    payments.all,
-    cash.months,
-    arInvoices,
-    records,
-    health,
-  ]);
-}
-
-const AREAS: Area[] = ["Money", "Stock", "Sales & Marketing", "Profit", "Team"];
-const SHOW = 8;
-
-function NeedsAttention() {
-  const items = useAttentionItems();
-  const [area, setArea] = useState<Area | "All">("All");
+function OtherBlock({ items }: { items: Item[] }) {
   const [all, setAll] = useState(false);
-  const areas = AREAS.filter((a) => items.some((i) => i.area === a));
-  const filtered = items.filter((i) => area === "All" || i.area === area);
-  const shown = all ? filtered : filtered.slice(0, SHOW);
-  const urgent = items.filter((i) => i.level === "critical").length;
-
+  if (items.length === 0) return null;
+  const shown = all ? items : items.slice(0, 6);
   return (
-    <div className="card priority-card">
-      <div className="section-title">
-        <div>
-          <span className="section-kicker">
-            {items.length} ITEMS · {urgent} URGENT
-          </span>
-          <h3>Needs attention</h3>
-        </div>
-      </div>
-      {areas.length > 1 ? (
-        <div className="attention-filters" role="tablist">
-          {(["All", ...areas] as const).map((a) => (
-            <button
-              key={a}
-              type="button"
-              className={area === a ? "active" : ""}
-              onClick={() => {
-                setArea(a);
-                setAll(false);
-              }}
-            >
-              {a} {a === "All" ? items.length : items.filter((i) => i.area === a).length}
-            </button>
-          ))}
-        </div>
-      ) : null}
-      <div className="priority-list">
-        {shown.length === 0 ? <div className="empty">Nothing needs action today.</div> : null}
-        {shown.map((a) => (
-          <div key={a.key} className={`priority-item ${LEVEL_CLASS[a.level]}`}>
-            <div className="priority-mark">{LEVEL_BADGE[a.level]}</div>
-            <div className="priority-copy">
-              <div className="priority-title">
-                <span className="area-tag">{a.area}</span>
-                {a.title}
-              </div>
-              <div className="priority-sub">{a.detail}</div>
-            </div>
-            <div className="priority-action">
-              <strong>{a.value}</strong>
-              <Link className="row-link" to={a.to}>
-                {a.action}
-              </Link>
-            </div>
-          </div>
+    <Block
+      icon="•••"
+      tone="amber"
+      title="Also needs attention"
+      summary="Stock counts, stock movements, product cost, profit and team"
+    >
+      <div className="other-list">
+        {shown.map((i) => (
+          <ItemRow key={i.key} i={i} />
         ))}
       </div>
-      {filtered.length > SHOW ? (
-        <button
-          className="btn"
-          type="button"
-          style={{ marginTop: 12, width: "100%" }}
-          onClick={() => setAll((x) => !x)}
-        >
-          {all ? "Show fewer" : `Show all ${filtered.length}`}
+      {items.length > 6 ? (
+        <button type="button" className="link-btn" onClick={() => setAll((x) => !x)}>
+          {all ? "Show fewer" : `Show all ${items.length}`}
         </button>
       ) : null}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- side panel
-
-function SidePanel() {
-  const { role, data } = useStore();
-  const can = (m: ModuleId) => access(role, m) !== null;
-  const payments = usePayments();
-  const plan = usePlanning();
-  const upcoming = payments.all.filter((p) => p.status !== "Paid" && p.dueDate).slice(0, 6);
-  const openPOs = data.purchaseOrders.filter((p) => p.status === "Open");
-  const healthy = plan.finishedGoods.filter((p) => p.poStatus === "No PO Required").length;
-  const reorder = plan.finishedGoods.filter(
-    (p) => p.poStatus === "PO Now" || p.poStatus === "Additional PO Required",
-  ).length;
-
-  if (!can("payments") && !can("projection")) return null;
-  return (
-    <div className="dashboard-side">
-      {can("payments") ? (
-        <div className="card pulse-card">
-          <div className="section-title">
-            <div>
-              <span className="section-kicker">COMING UP</span>
-              <h3>Next payments</h3>
-            </div>
-            <Link className="text-link" to="/payments">
-              All →
-            </Link>
-          </div>
-          {upcoming.map((p) => (
-            <div key={p.id} className="pulse-row">
-              <span>
-                {p.vendor}
-                <br />
-                <small className="muted">{formatDate(p.dueDate)}</small>
-              </span>
-              <strong>{usd(p.amount)}</strong>
-            </div>
-          ))}
-        </div>
-      ) : null}
-      {can("projection") ? (
-        <div className="card pulse-card">
-          <div className="section-title">
-            <div>
-              <span className="section-kicker">{sectionOf("projection")?.label.toUpperCase()}</span>
-              <h3>Stock at a glance</h3>
-            </div>
-            <Link className="text-link" to="/projection">
-              Open →
-            </Link>
-          </div>
-          <div className="pulse-row">
-            <span>Products healthy</span>
-            <div>
-              <strong>{healthy}</strong>
-              <span className="trend good">ok</span>
-            </div>
-          </div>
-          <div className="pulse-row">
-            <span>Products to reorder</span>
-            <div>
-              <strong>{reorder}</strong>
-              <span className="trend watch">action</span>
-            </div>
-          </div>
-          <div className="pulse-row">
-            <span>Open purchase orders</span>
-            <div>
-              <strong>{openPOs.length}</strong>
-              <span className="trend neutral">POs</span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </div>
+    </Block>
   );
 }

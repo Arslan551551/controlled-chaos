@@ -6,6 +6,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 
 import { ROLES, type Role } from "./access";
 import { buildCogsBatches, runTubeLedger } from "./engine/cogs";
+import { autoTagShopifyOrders } from "./engine/people";
 import { runPlanning } from "./engine/planning";
 import type { StockPosition } from "./engine/types";
 import * as core from "./sample/core";
@@ -19,6 +20,8 @@ import * as campaignData from "./sample/campaigns";
 import * as payroll from "./sample/payroll";
 
 function initialData() {
+  // Shopify sync: orders matching a salon (email or name) are tagged to its rep automatically.
+  const shopify = autoTagShopifyOrders(ppl.incomingShopifyOrders, ppl.salonAccounts, newId);
   return {
     skus: core.skus,
     finishedGoodsStock: core.finishedGoodsStock,
@@ -30,6 +33,8 @@ function initialData() {
     vendors: fin.vendors,
     nonPOPayments: fin.nonPOPayments,
     bankAccounts: fin.bankAccounts,
+    pastCashPlan: fin.pastCashPlan,
+    bankMovements: fin.bankMovements,
     manualCashLines: fin.manualCashLines,
     expectedReceipts: fin.expectedReceipts,
     channelSales: fin.channelSales,
@@ -44,8 +49,8 @@ function initialData() {
     salesReps: ppl.salesReps,
     salonAccounts: ppl.salonAccounts,
     commissionPlans: ppl.commissionPlans,
-    salonOrders: ppl.salonOrders,
-    untaggedShopifyOrders: ppl.untaggedShopifyOrders,
+    salonOrders: [...ppl.salonOrders, ...shopify.tagged],
+    untaggedShopifyOrders: shopify.untagged,
     distributors: ppl.distributors,
     distributorInvoices: ppl.distributorInvoices,
     distributorLedger: ppl.distributorLedger,

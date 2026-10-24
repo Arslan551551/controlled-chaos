@@ -7,6 +7,7 @@ import type { ArInvoice } from "./engine/ar";
 import { distributorPositions, invoicePaid } from "./engine/distributors";
 import type { ChannelRecord } from "./engine/outflows";
 import {
+  cashExpectedVsActual,
   cashFlowOutlook,
   paymentPlanByMonth,
   plannedPayments,
@@ -131,6 +132,25 @@ export function useCashFlow() {
     const months = cashFlowOutlook(data.bankAccounts, lines, asOf, 3);
     return { months, lines, opening: data.bankAccounts.reduce((a, b) => a + b.balance, 0) };
   }, [data, asOf, payments.all]);
+}
+
+/** Expected vs actual cash by week: this week and the 3 before (real bank), then the next 8 (plan). */
+export function useCashCompare(weeksBack = 3, weeksAhead = 8) {
+  const { data, asOf } = useStore();
+  const cash = useCashFlow();
+  return useMemo(() => {
+    const plan = [...data.pastCashPlan.filter((l) => l.date < asOf), ...cash.lines];
+    const actual = data.bankMovements.filter((m) => m.date <= asOf);
+    return cashExpectedVsActual(cash.opening, plan, actual, asOf, weeksBack, weeksAhead);
+  }, [
+    data.pastCashPlan,
+    data.bankMovements,
+    cash.lines,
+    cash.opening,
+    asOf,
+    weeksBack,
+    weeksAhead,
+  ]);
 }
 
 /** Week-by-week (Mon–Sun) cash schedule from today, using the same lines as the monthly outlook. */
