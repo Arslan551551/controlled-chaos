@@ -5,67 +5,128 @@ import { monthKey } from "./dates.ts";
 import type { Location } from "./types.ts";
 
 // ---------------------------------------------------------------- stock count
+// Modelled on "Physical Stock Counting.xlsx": one sheet per month and location,
+// every active SKU listed by burn (fastest first), each line counted on its own
+// date/time as No. of Boxes × Units/Box (+ loose units), compared with the
+// ShipStation quantity captured at that moment.
 
-export interface StockCountLine {
+export type CountSheetStatus = "In Progress" | "Sent to Finance" | "Adjusted in ShipStation";
+
+export interface CountSheetLine {
   sku: string;
-  countedQty: number;
-  /** ShipStation quantity captured at the count date/time. */
-  systemQty: number;
+  /** ISO date-time "2026-10-20T09:30" when this SKU was counted. */
+  countedAt: string | null;
+  boxes: number | null;
+  unitsPerBox: number;
+  looseUnits: number | null;
+  /** ShipStation quantity captured at countedAt. */
+  systemQty: number | null;
+  counter: string | null;
 }
 
-export type StockCountStatus = "Draft" | "Sent to Finance" | "Adjusted in ShipStation";
-
-export interface StockCount {
+export interface CountSheet {
   id: string;
-  countedAt: string; // ISO date-time "2026-10-20T14:30"
+  month: string; // "2026-10"
   location: Location;
-  countedBy: string;
-  lines: StockCountLine[];
-  status: StockCountStatus;
+  status: CountSheetStatus;
+  lines: CountSheetLine[];
   notes: string;
+  sentAt: string | null;
   adjustedBy: string | null;
   adjustedAt: string | null;
 }
 
 export const VARIANCE_REVIEW_PCT = 0.02;
 
-export interface VarianceLine extends StockCountLine {
-  variance: number;
-  variancePct: number;
-  valueImpact: number;
-  needsReview: boolean;
+/** Boxes × units/box + loose units; null when nothing entered yet. */
+export function countedTotal(l: CountSheetLine): number | null {
+  if (l.boxes === null && l.looseUnits === null) return null;
+  return (l.boxes ?? 0) * l.unitsPerBox + (l.looseUnits ?? 0);
 }
 
-export function countVariances(count: StockCount, unitCost: (sku: string) => number): VarianceLine[] {
-  return count.lines.map((l) => {
-    const variance = l.countedQty - l.systemQty;
-    const variancePct = l.systemQty > 0 ? variance / l.systemQty : l.countedQty > 0 ? 1 : 0;
+export function isCounted(l: CountSheetLine): boolean {
+  return l.countedAt !== null && countedTotal(l) !== null;
+}
+
+export function sheetProgress(sheet: CountSheet) {
+  const counted = sheet.lines.filter(isCounted).length;
+  return { counted, total: sheet.lines.length, pct: sheet.lines.length ? counted / sheet.lines.length : 0 };
+}
+
+/** Units/box looks wrong: over 1,000, or more than 3× away from the SKU master value. */
+export function unitsPerBoxAnomaly(lineUnits: number, masterUnits: number): boolean {
+  if (lineUnits > 1000) return true;
+  if (masterUnits > 0 && lineUnits > 0 && (lineUnits > masterUnits * 3 || lineUnits * 3 < masterUnits)) return true;
+  return false;
+}
+
+export interface SheetVarianceLine extends CountSheetLine {
+  counted: number | null;
+  variance: number | null;
+  variancePct: number | null;
+  valueImpact: number | null;
+  needsReview: boolean;
+  anomaly: boolean;
+}
+
+export function sheetVariances(
+  sheet: CountSheet,
+  unitCost: (sku: string) => number,
+  masterUnitsPerBox: (sku: string) => number,
+): SheetVarianceLine[] {
+  return sheet.lines.map((l) => {
+    const counted = isCounted(l) ? countedTotal(l) : null;
+    const anomaly = l.boxes !== null && unitsPerBoxAnomaly(l.unitsPerBox, masterUnitsPerBox(l.sku));
+    if (counted === null || l.systemQty === null) {
+      return { ...l, counted, variance: null, variancePct: null, valueImpact: null, needsReview: false, anomaly };
+    }
+    const variance = counted - l.systemQty;
+    const variancePct = l.systemQty > 0 ? variance / l.systemQty : counted > 0 ? 1 : 0;
     return {
       ...l,
+      counted,
       variance,
       variancePct,
       valueImpact: Math.round(variance * unitCost(l.sku) * 100) / 100,
       needsReview: Math.abs(variancePct) >= VARIANCE_REVIEW_PCT,
+      anomaly,
     };
   });
 }
 
-/** The email Finance receives when a count is sent. Queued in the outbox; sent via Gmail later. */
-export function varianceEmail(count: StockCount, lines: VarianceLine[], financeEmail: string) {
-  const changed = lines.filter((l) => l.variance !== 0);
+/** Builds a new sheet: SKUs sorted by burn, fastest first (like the Excel). */
+export function newCountSheet(
+  id: string,
+  month: string,
+  location: Location,
+  skus: { sku: string; unitsPerBox: number; burnPerDay: number }[],
+): CountSheet {
+  const lines = [...skus]
+    .sort((a, b) => b.burnPerDay - a.burnPerDay || a.sku.localeCompare(b.sku))
+    .map((s) => ({ sku: s.sku, countedAt: null, boxes: null, unitsPerBox: s.unitsPerBox, looseUnits: null, systemQty: null, counter: null }));
+  return { id, month, location, status: "In Progress", lines, notes: "", sentAt: null, adjustedBy: null, adjustedAt: null };
+}
+
+/** The email Finance receives. Queued in the outbox; sent via Gmail later. Only counted lines with a difference. */
+export function varianceEmail(sheet: CountSheet, lines: SheetVarianceLine[], financeEmail: string) {
+  const changed = lines.filter((l) => l.variance !== null && l.variance !== 0);
+  const counted = lines.filter((l) => l.counted !== null).length;
   const body = [
-    `Physical stock count at ${count.location} on ${count.countedAt.replace("T", " ")} by ${count.countedBy}.`,
+    `Physical stock count – ${sheet.location} – ${sheet.month} (${counted} of ${lines.length} SKUs counted).`,
     "",
     changed.length === 0
       ? "All counted SKUs match ShipStation. No adjustment needed."
       : "Please adjust ShipStation for these differences:",
-    ...changed.map((l) => `• ${l.sku}: counted ${l.countedQty}, ShipStation ${l.systemQty}, difference ${l.variance > 0 ? "+" : ""}${l.variance}`),
+    ...changed.map(
+      (l) =>
+        `• ${l.sku} (counted ${l.countedAt?.replace("T", " ") ?? ""} by ${l.counter ?? "warehouse"}): counted ${l.counted}, ShipStation ${l.systemQty}, difference ${(l.variance ?? 0) > 0 ? "+" : ""}${l.variance}`,
+    ),
     "",
-    count.notes ? `Warehouse notes: ${count.notes}` : "",
+    sheet.notes ? `Warehouse notes: ${sheet.notes}` : "",
   ].filter((s, i, a) => !(s === "" && a[i - 1] === ""));
   return {
     to: financeEmail,
-    subject: `Stock count variance – ${count.location} – ${count.countedAt.slice(0, 10)} (${changed.length} SKU${changed.length === 1 ? "" : "s"})`,
+    subject: `Stock count variance – ${sheet.location} – ${sheet.month} (${changed.length} SKU${changed.length === 1 ? "" : "s"})`,
     body: body.join("\n"),
   };
 }

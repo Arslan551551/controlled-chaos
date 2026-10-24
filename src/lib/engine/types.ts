@@ -25,6 +25,8 @@ export interface Sku {
   leadTimeDays: number;
   /** Stocked tube threshold. 0 = tube stock not normally maintained. */
   tubeThresholdQty: number;
+  /** Units per carton for physical counts. 0 = counted loose. */
+  unitsPerBox: number;
   active: boolean;
   shipStationStatus: "Complete" | "Pending Setup";
 }

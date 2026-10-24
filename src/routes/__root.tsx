@@ -11,6 +11,11 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import ccBaseCss from "../styles/cc-base.css?url";
+import ccPrototypeCss from "../styles/cc-prototype.css?url";
+import ccExtrasCss from "../styles/cc-extras.css?url";
+import { AppShell } from "../components/cc/AppShell";
+import { StoreProvider } from "../lib/store";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -79,18 +84,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Controlled Chaos" },
-      { name: "description", content: "Controlled Chaos is coming soon." },
-      { property: "og:title", content: "Controlled Chaos" },
-      { property: "og:description", content: "Controlled Chaos is coming soon." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "description", content: "Controlled Chaos operations, purchasing and finance portal." },
+      { name: "robots", content: "noindex, nofollow" },
     ],
     links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
+      { rel: "stylesheet", href: appCss },
+      { rel: "stylesheet", href: ccBaseCss },
+      { rel: "stylesheet", href: ccPrototypeCss },
+      { rel: "stylesheet", href: ccExtrasCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
@@ -119,8 +120,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <StoreProvider>
+        <AppShell>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </AppShell>
+      </StoreProvider>
     </QueryClientProvider>
   );
 }

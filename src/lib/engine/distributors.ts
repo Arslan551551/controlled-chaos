@@ -33,6 +33,12 @@ export interface Distributor {
 export interface InvoicePayment {
   date: string;
   amount: number;
+  /**
+   * Cash = money received. "Credit / Fund Applied" = part of the invoice settled with a
+   * product credit or the marketing fund. Only cash creates a new marketing fund —
+   * settling with accrual must not create accrual again (confirmed by Arslan, 24 Oct 2026).
+   */
+  method?: "Cash" | "Credit / Fund Applied";
 }
 
 /** QuickBooks invoice to a distributor. */
@@ -69,6 +75,7 @@ export interface LedgerRow extends LedgerEntry {
   balance: number;
 }
 
+/** Everything settled on the invoice — cash plus credits / fund applied. */
 export function invoicePaid(inv: DistributorInvoice): number {
   return inv.payments.reduce((a, p) => a + p.amount, 0);
 }
@@ -79,7 +86,7 @@ export function autoFundEntries(d: Distributor, invoices: DistributorInvoice[]):
   return invoices
     .filter((i) => i.distributorId === d.id)
     .flatMap((inv) =>
-      inv.payments.map((p, idx) => ({
+      inv.payments.flatMap((p, idx) => (p.method ?? "Cash") !== "Cash" ? [] : [{
         id: `MF-${inv.id}-${idx}`,
         distributorId: d.id,
         ledger: "Marketing Fund" as const,
@@ -91,7 +98,7 @@ export function autoFundEntries(d: Distributor, invoices: DistributorInvoice[]):
         minus: 0,
         support: inv.link,
         source: "Auto from QuickBooks payment" as const,
-      })),
+      }]),
     );
 }
 

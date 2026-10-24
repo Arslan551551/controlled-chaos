@@ -3,7 +3,7 @@
 // stock counts, tools & subscriptions. Names other than Viviene and Maly's are placeholders.
 
 import type { ConsignmentMovement, Distributor, DistributorInvoice, LedgerEntry } from "../engine/distributors.ts";
-import type { BankTransaction, StockCount, Subscription } from "../engine/operations.ts";
+import type { BankTransaction, CountSheet, CountSheetLine, Subscription } from "../engine/operations.ts";
 import type { CommissionPlan, ConsultantTarget, Employee, KpiReview, ReviewTemplate, SalesRep, SalonAccount, SalonOrder } from "../engine/people.ts";
 
 // ---------------------------------------------------------------- employees & KPIs
@@ -59,9 +59,9 @@ const s = (o: Record<string, number>) => o;
 export const kpiReviews: KpiReview[] = [
   { id: "R-1", employeeId: "E-DMF", month: "2026-09", reviewerId: "E-DF", scores: s({ accuracy: 4, close: 5, cogs: 4, comms: 4, initiative: 3 }), comments: "Close finished a day early.", status: "Submitted" },
   { id: "R-2", employeeId: "E-SFO", month: "2026-09", reviewerId: "E-DF", scores: s({ accuracy: 4, close: 4, cogs: 3, comms: 4, initiative: 4 }), comments: "Two batches finalized late.", status: "Submitted" },
-  { id: "R-3", employeeId: "E-VIV", month: "2026-09", reviewerId: "E-DF", scores: s({ po: 3, eta: 4, data: 5, cost: 4 }), comments: "CC-5OZ PO opened after Open By date.", status: "Submitted" },
+  { id: "R-3", employeeId: "E-VIV", month: "2026-09", reviewerId: "E-DF", scores: s({ po: 3, eta: 4, data: 5, cost: 4 }), comments: "CONTCHAOSCC5OZ PO opened after Open By date.", status: "Submitted" },
   { id: "R-4", employeeId: "E-WH1", month: "2026-09", reviewerId: "E-VIV", scores: s({ count: 5, ship: 4, safety: 4, transfer: 4 }), comments: "", status: "Submitted" },
-  { id: "R-5", employeeId: "E-WH2", month: "2026-09", reviewerId: "E-WH1", scores: s({ count: 3, ship: 4, safety: 3, transfer: 4 }), comments: "Count variance on CL-8OZ.", status: "Submitted" },
+  { id: "R-5", employeeId: "E-WH2", month: "2026-09", reviewerId: "E-WH1", scores: s({ count: 3, ship: 4, safety: 3, transfer: 4 }), comments: "Count variance on CLNSAHR8OZGFF.", status: "Submitted" },
   { id: "R-6", employeeId: "E-MKT", month: "2026-09", reviewerId: "E-DF", scores: s({ roas: 3, content: 4, launch: 4, report: 5 }), comments: "TikTok ROAS below target.", status: "Submitted" },
   { id: "R-7", employeeId: "E-SR1", month: "2026-09", reviewerId: "E-MKT", scores: s({ new: 5, repeat: 4, crm: 4 }), comments: "3 new salons.", status: "Submitted" },
   { id: "R-8", employeeId: "E-SR2", month: "2026-09", reviewerId: "E-MKT", scores: s({ new: 3, repeat: 4, crm: 3 }), comments: "", status: "Submitted" },
@@ -134,7 +134,7 @@ export const distributors: Distributor[] = [
   { id: "D-NL", name: "Netherlands Distributor", legalName: "Placeholder B.V.", contact: "Account Manager", email: "orders@nl.example", city: "Rotterdam", country: "Netherlands", currency: "EUR", model: "Consignment", paymentTermsDays: 30, creditLimit: 0, marketingFundPct: 0, status: "Active" },
 ];
 
-const inv = (id: string, distributorId: string, date: string, amount: number, payments: { date: string; amount: number }[], terms = 30): DistributorInvoice => {
+const inv = (id: string, distributorId: string, date: string, amount: number, payments: DistributorInvoice["payments"], terms = 30): DistributorInvoice => {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + terms);
   return { id, distributorId, date, dueDate: d.toISOString().slice(0, 10), amount, payments, link: null };
@@ -143,12 +143,12 @@ const inv = (id: string, distributorId: string, date: string, amount: number, pa
 export const distributorInvoices: DistributorInvoice[] = [
   // Maly's — paid amounts from the Malys Ledger workbook
   inv("30001", "D-MALYS", "2026-01-26", 30202.75, [{ date: "2026-02-24", amount: 30202.75 }]),
-  inv("30144", "D-MALYS", "2026-04-27", 2153.49, [{ date: "2026-05-08", amount: 2153.49 }]),
+  inv("30144", "D-MALYS", "2026-04-27", 3798.74, [{ date: "2026-04-27", amount: 1645.25, method: "Credit / Fund Applied" }, { date: "2026-05-08", amount: 2153.49, method: "Cash" }]),
   inv("30182", "D-MALYS", "2026-05-01", 196, [{ date: "2026-05-08", amount: 196 }]),
   inv("30216", "D-MALYS", "2026-05-12", 968.13, [{ date: "2026-05-18", amount: 968.13 }]),
   inv("30221", "D-MALYS", "2026-05-14", 509, [{ date: "2026-06-08", amount: 509 }]),
   inv("30350", "D-MALYS", "2026-07-02", 2907.03, [{ date: "2026-07-24", amount: 2907.03 }]),
-  inv("30531", "D-MALYS", "2026-09-10", 448.98, [{ date: "2026-10-02", amount: 448.98 }]),
+  inv("30531", "D-MALYS", "2026-09-10", 536.76, [{ date: "2026-10-02", amount: 87.78, method: "Credit / Fund Applied" }, { date: "2026-10-02", amount: 448.98, method: "Cash" }]),
   inv("30588", "D-MALYS", "2026-10-06", 6840, []),
   // Beauty Supply East
   inv("30410", "D-BSE", "2026-07-15", 18400, [{ date: "2026-08-28", amount: 18400 }], 45),
@@ -175,41 +175,97 @@ export const distributorLedger: LedgerEntry[] = [
   le("L-007", "D-MALYS", "Product Credit", "2026-10-02", "Credit Applied", "30531", "Credit Memo 30403 applied on Invoice 30531", 0, 87.78),
   // Beauty Supply East
   le("L-101", "D-BSE", "Marketing Fund", "2026-09-12", "Goods Issued", "#30498", "Free goods – salon education event", 0, 300),
-  le("L-102", "D-BSE", "Product Credit", "2026-09-20", "Credit Memo", "30520", "Damaged cartons – 40 × Cleanser 8oz", 228, 0, "QuickBooks credit memo"),
+  le("L-102", "D-BSE", "Product Credit", "2026-09-20", "Credit Memo", "30520", "Damaged cartons – 40 × Hair Cleanser 8oz", 228, 0, "QuickBooks credit memo"),
 ];
 
 export const consignmentMovements: ConsignmentMovement[] = [
-  { id: "CM-1", distributorId: "D-NL", date: "2026-06-10", sku: "CC-5OZ", type: "Shipment to Distributor", qty: 4000, reference: "Shipment NL-SHP-03" },
-  { id: "CM-2", distributorId: "D-NL", date: "2026-06-10", sku: "HM-8OZ", type: "Shipment to Distributor", qty: 2500, reference: "Shipment NL-SHP-03" },
-  { id: "CM-3", distributorId: "D-NL", date: "2026-07-31", sku: "CC-5OZ", type: "Reported Sale", qty: 820, unitPrice: 6, invoiceId: "NL-0007", reference: "July sell-through report" },
-  { id: "CM-4", distributorId: "D-NL", date: "2026-07-31", sku: "HM-8OZ", type: "Reported Sale", qty: 410, unitPrice: 6, invoiceId: "NL-0007", reference: "July sell-through report" },
-  { id: "CM-5", distributorId: "D-NL", date: "2026-08-31", sku: "CC-5OZ", type: "Reported Sale", qty: 650, unitPrice: 6, invoiceId: "NL-0008", reference: "August sell-through report" },
-  { id: "CM-6", distributorId: "D-NL", date: "2026-08-31", sku: "HM-8OZ", type: "Reported Sale", qty: 340, unitPrice: 6, invoiceId: "NL-0008", reference: "August sell-through report" },
-  { id: "CM-7", distributorId: "D-NL", date: "2026-09-30", sku: "CC-5OZ", type: "Reported Sale", qty: 720, unitPrice: 6, invoiceId: "NL-0009", reference: "September sell-through report" },
-  { id: "CM-8", distributorId: "D-NL", date: "2026-09-30", sku: "HM-8OZ", type: "Reported Sale", qty: 390, unitPrice: 6, invoiceId: "NL-0009", reference: "September sell-through report" },
-  { id: "CM-9", distributorId: "D-NL", date: "2026-09-30", sku: "HM-8OZ", type: "Adjustment", qty: -12, reference: "Damaged in their warehouse" },
-  { id: "CM-10", distributorId: "D-NL", date: "2026-10-20", sku: "CC-5OZ", type: "Reported Sale", qty: 310, unitPrice: 6, invoiceId: null, reference: "October mid-month report" },
+  { id: "CM-1", distributorId: "D-NL", date: "2026-06-10", sku: "CONTCHAOSCC5OZ", type: "Shipment to Distributor", qty: 4000, reference: "Shipment NL-SHP-03" },
+  { id: "CM-2", distributorId: "D-NL", date: "2026-06-10", sku: "MOISTAHR8OZPO", type: "Shipment to Distributor", qty: 2500, reference: "Shipment NL-SHP-03" },
+  { id: "CM-3", distributorId: "D-NL", date: "2026-07-31", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 820, unitPrice: 6, invoiceId: "NL-0007", reference: "July sell-through report" },
+  { id: "CM-4", distributorId: "D-NL", date: "2026-07-31", sku: "MOISTAHR8OZPO", type: "Reported Sale", qty: 410, unitPrice: 6, invoiceId: "NL-0007", reference: "July sell-through report" },
+  { id: "CM-5", distributorId: "D-NL", date: "2026-08-31", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 650, unitPrice: 6, invoiceId: "NL-0008", reference: "August sell-through report" },
+  { id: "CM-6", distributorId: "D-NL", date: "2026-08-31", sku: "MOISTAHR8OZPO", type: "Reported Sale", qty: 340, unitPrice: 6, invoiceId: "NL-0008", reference: "August sell-through report" },
+  { id: "CM-7", distributorId: "D-NL", date: "2026-09-30", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 720, unitPrice: 6, invoiceId: "NL-0009", reference: "September sell-through report" },
+  { id: "CM-8", distributorId: "D-NL", date: "2026-09-30", sku: "MOISTAHR8OZPO", type: "Reported Sale", qty: 390, unitPrice: 6, invoiceId: "NL-0009", reference: "September sell-through report" },
+  { id: "CM-9", distributorId: "D-NL", date: "2026-09-30", sku: "MOISTAHR8OZPO", type: "Adjustment", qty: -12, reference: "Damaged in their warehouse" },
+  { id: "CM-10", distributorId: "D-NL", date: "2026-10-20", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 310, unitPrice: 6, invoiceId: null, reference: "October mid-month report" },
 ];
 
 // ---------------------------------------------------------------- stock counts
+// Monthly count sheets, as in "Physical Stock Counting.xlsx". Lines are listed
+// fastest-burning SKU first; each SKU can be counted on a different day.
 
-export const stockCounts: StockCount[] = [
-  { id: "SC-014", countedAt: "2026-10-20T09:30", location: "Brentwood", countedBy: "Warehouse Lead (Brentwood)", lines: [
-    { sku: "CC-5OZ", countedQty: 7015, systemQty: 7040 },
-    { sku: "CL-8OZ", countedQty: 4188, systemQty: 4260 },
-  ], status: "Sent to Finance", notes: "CL-8OZ: 2 cases found crushed on rack B4.", adjustedBy: null, adjustedAt: null },
-  { id: "SC-013", countedAt: "2026-10-06T15:00", location: "Brentwood", countedBy: "Warehouse Associate", lines: [
-    { sku: "HM-8OZ", countedQty: 7480, systemQty: 7480 },
-    { sku: "ACC-COMB", countedQty: 4590, systemQty: 4602 },
-    { sku: "ACC-BRUSH", countedQty: 3190, systemQty: 3190 },
-  ], status: "Adjusted in ShipStation", notes: "", adjustedBy: "Sr Finance Officer", adjustedAt: "2026-10-07T11:20" },
-  { id: "SC-012", countedAt: "2026-09-22T10:00", location: "Georgia", countedBy: "Georgia Prep (3PL)", lines: [
-    { sku: "CC-3.4OZ", countedQty: 12350, systemQty: 12300 },
-    { sku: "CC-5OZ", countedQty: 5600, systemQty: 5600 },
-  ], status: "Adjusted in ShipStation", notes: "50 units found on returns shelf.", adjustedBy: "Deputy Manager Finance", adjustedAt: "2026-09-23T09:10" },
+const line = (
+  sku: string,
+  unitsPerBox: number,
+  countedAt: string | null = null,
+  boxes: number | null = null,
+  looseUnits: number | null = null,
+  systemQty: number | null = null,
+  counter: string | null = null,
+): CountSheetLine => ({ sku, countedAt, boxes, unitsPerBox, looseUnits, systemQty, counter });
+
+const WL = "Warehouse Lead (Brentwood)";
+const WA = "Warehouse Associate";
+const GA = "Georgia Prep (3PL)";
+
+export const stockCounts: CountSheet[] = [
+  {
+    id: "CS-2026-10-BW",
+    month: "2026-10",
+    location: "Brentwood",
+    status: "In Progress",
+    notes: "",
+    sentAt: null,
+    adjustedBy: null,
+    adjustedAt: null,
+    lines: [
+      line("MOISTAHR8OZPO", 24, "2026-10-20T09:30", 257, 12, 6190, WL),
+      line("CONTCHAOSCC5OZ", 12, "2026-10-21T14:10", 581, 0, 7010, WL),
+      line("CONTCHAOSCC3OZ", 48),
+      line("CLNSAHR8OZGFF", 24, "2026-10-22T10:45", 174, 0, 4250, WA),
+      line("CCHAIRCOMBPW", 150),
+      line("CCHAIRBRUSH1", 0, "2026-10-23T16:20", null, 2788, 2800, WA),
+    ],
+  },
+  {
+    id: "CS-2026-09-BW",
+    month: "2026-09",
+    location: "Brentwood",
+    status: "Adjusted in ShipStation",
+    notes: "Hair Cleanser 8oz: 2 cases found crushed on rack B4.",
+    sentAt: "2026-09-26T17:05",
+    adjustedBy: "Sr Finance Officer",
+    adjustedAt: "2026-09-29T11:20",
+    lines: [
+      line("MOISTAHR8OZPO", 24, "2026-09-22T09:00", 312, 0, 7488, WL),
+      line("CONTCHAOSCC5OZ", 12, "2026-09-22T11:30", 623, 0, 7476, WL),
+      line("CONTCHAOSCC3OZ", 48, "2026-09-23T10:15", 107, 0, 5100, WA),
+      line("CLNSAHR8OZGFF", 24, "2026-09-24T09:40", 390, 0, 9408, WL),
+      line("CCHAIRCOMBPW", 150, "2026-09-25T15:00", 30, 0, 4512, WA),
+      line("CCHAIRBRUSH1", 0, "2026-09-25T16:10", null, 3190, 3190, WA),
+    ],
+  },
+  {
+    id: "CS-2026-09-GA",
+    month: "2026-09",
+    location: "Georgia",
+    status: "Sent to Finance",
+    notes: "Curl Creme 3oz units/box keyed as 4,800 by 3PL — recount requested.",
+    sentAt: "2026-09-30T12:00",
+    adjustedBy: null,
+    adjustedAt: null,
+    lines: [
+      line("MOISTAHR8OZPO", 24, "2026-09-23T10:00", 130, 0, 3120, GA),
+      line("CONTCHAOSCC5OZ", 12, "2026-09-23T10:40", 466, 8, 5600, GA),
+      line("CONTCHAOSCC3OZ", 4800, "2026-09-24T09:15", 256, 0, 12300, GA),
+      line("CLNSAHR8OZGFF", 24, "2026-09-24T11:00", 367, 0, 8808, GA),
+      line("CCHAIRCOMBPW", 150, "2026-09-25T13:30", 40, 0, 6000, GA),
+      line("CCHAIRBRUSH1", 0, "2026-09-25T14:00", null, 3600, 3600, GA),
+    ],
+  },
 ];
 
-/** ShipStation quantity "as of now", used to pre-fill a new count. */
 export const FINANCE_EMAIL = "finance@controlledchaoshair.com";
 
 // ---------------------------------------------------------------- tools & subscriptions

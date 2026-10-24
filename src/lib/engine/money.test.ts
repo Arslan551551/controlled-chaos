@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildCogsBatches, runTubeLedger } from "./cogs.ts";
 import { cashFlowOutlook, isValidAllocation, profitability, salesVsCash } from "./finance.ts";
 import { calculateCommission, consultantScore, reviewScore, type CommissionPlan, type SalonOrder } from "./people.ts";
-import { countVariances, detectSubscriptions } from "./operations.ts";
+import { detectSubscriptions, newCountSheet, sheetProgress, sheetVariances, varianceEmail, type CountSheet } from "./operations.ts";
 import type { PurchaseOrder } from "./types.ts";
 
 describe("moving weighted-average tube cost", () => {
@@ -196,14 +196,58 @@ describe("KPIs", () => {
 });
 
 describe("stock count and subscriptions", () => {
-  it("calculates count differences against ShipStation", () => {
-    const lines = countVariances(
-      { id: "c", countedAt: "2026-10-20T10:00", location: "Brentwood", countedBy: "W", lines: [{ sku: "A", countedQty: 980, systemQty: 1000 }], status: "Draft", notes: "", adjustedBy: null, adjustedAt: null },
-      () => 2.5,
-    );
+  const sheet: CountSheet = {
+    id: "cs",
+    month: "2026-10",
+    location: "Brentwood",
+    status: "In Progress",
+    notes: "",
+    sentAt: null,
+    adjustedBy: null,
+    adjustedAt: null,
+    lines: [
+      { sku: "A", countedAt: "2026-10-20T10:00", boxes: 81, unitsPerBox: 12, looseUnits: 8, systemQty: 1000, counter: "W" },
+      { sku: "B", countedAt: "2026-10-21T09:00", boxes: null, unitsPerBox: 0, looseUnits: 500, systemQty: 500, counter: "W" },
+      { sku: "C", countedAt: "2026-10-22T09:00", boxes: 197, unitsPerBox: 4925, looseUnits: null, systemQty: 4700, counter: "W" },
+      { sku: "D", countedAt: null, boxes: null, unitsPerBox: 24, looseUnits: null, systemQty: null, counter: null },
+    ],
+  };
+  const master = (sku: string) => (sku === "C" ? 24 : sku === "A" ? 12 : 0);
+
+  it("counts boxes × units/box + loose units against ShipStation", () => {
+    const lines = sheetVariances(sheet, () => 2.5, master);
+    expect(lines[0]!.counted).toBe(980);
     expect(lines[0]!.variance).toBe(-20);
     expect(lines[0]!.valueImpact).toBe(-50);
     expect(lines[0]!.needsReview).toBe(true);
+    expect(lines[1]!.variance).toBe(0);
+    expect(lines[3]!.counted).toBeNull();
+  });
+
+  it("tracks progress across different count days", () => {
+    expect(sheetProgress(sheet).counted).toBe(3);
+    expect(sheetProgress(sheet).total).toBe(4);
+  });
+
+  it("flags a units/box typo like the 4,925 on the Sep sheet", () => {
+    const lines = sheetVariances(sheet, () => 1, master);
+    expect(lines[2]!.anomaly).toBe(true);
+    expect(lines[0]!.anomaly).toBe(false);
+  });
+
+  it("emails Finance only the counted lines with a difference", () => {
+    const email = varianceEmail(sheet, sheetVariances(sheet, () => 1, master), "f@x.com");
+    expect(email.subject.includes("(2 SKUs)")).toBe(true);
+    expect(email.body.includes("• B")).toBe(false);
+  });
+
+  it("lists SKUs fastest burn first, like the Excel sheet", () => {
+    const s = newCountSheet("n", "2026-11", "Georgia", [
+      { sku: "slow", unitsPerBox: 12, burnPerDay: 5 },
+      { sku: "fast", unitsPerBox: 24, burnPerDay: 150 },
+    ]);
+    expect(s.lines.map((l) => l.sku)).toEqual(["fast", "slow"]);
+    expect(s.status).toBe("In Progress");
   });
 
   it("detects unregistered recurring merchants", () => {
@@ -244,6 +288,15 @@ describe("distributor ledgers (Maly's workbook)", () => {
     expect(p!.marketingFundBalance).toBe(956.14);
     expect(p!.productCreditBalance).toBe(1000);
     expect(p!.openAR).toBe(0);
+  });
+
+  it("does not create fund on the part of an invoice settled with credit or fund", async () => {
+    const { autoFundEntries } = await import("./distributors.ts");
+    const d = { id: "x", marketingFundPct: 4 } as any;
+    const entries = autoFundEntries(d, [{ id: "1", distributorId: "x", date: "2026-04-01", dueDate: "2026-05-01", amount: 3798.74, link: null,
+      payments: [{ date: "2026-04-27", amount: 1645.25, method: "Credit / Fund Applied" }, { date: "2026-05-08", amount: 2153.49, method: "Cash" }] }]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.plus).toBe(86.14);
   });
 });
 

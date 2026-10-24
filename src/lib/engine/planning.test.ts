@@ -17,6 +17,7 @@ function sku(over: Partial<Sku> = {}): Sku {
     moq: 5000,
     leadTimeDays: 60,
     tubeThresholdQty: 0,
+    unitsPerBox: 0,
     active: true,
     shipStationStatus: "Complete",
     ...over,
