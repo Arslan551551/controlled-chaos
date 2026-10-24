@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArRouteImport } from './routes/ar'
 import { Route as CashFlowRouteImport } from './routes/cash-flow'
 import { Route as CogsRouteImport } from './routes/cogs'
@@ -26,8 +27,12 @@ import { Route as StockCountRouteImport } from './routes/stock-count'
 import { Route as StockOutflowsRouteImport } from './routes/stock-outflows'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as VendorRouteImport } from './routes/vendor'
-import { Route as IndexRouteImport } from './routes/index'
 
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ArRoute = ArRouteImport.update({
   id: '/ar',
   path: '/ar',
@@ -113,11 +118,6 @@ const VendorRoute = VendorRouteImport.update({
   path: '/vendor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -182,10 +182,65 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/ar' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/stock-outflows' | '/tools' | '/vendor'
+  fullPaths:
+    | '/'
+    | '/ar'
+    | '/cash-flow'
+    | '/cogs'
+    | '/distributors'
+    | '/health'
+    | '/kpis'
+    | '/marketing'
+    | '/payments'
+    | '/profitability'
+    | '/projection'
+    | '/reports'
+    | '/sales-cash'
+    | '/salons'
+    | '/stock-count'
+    | '/stock-outflows'
+    | '/tools'
+    | '/vendor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/ar' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/stock-outflows' | '/tools' | '/vendor'
-  id: '__root__' | '/' | '/ar' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/stock-outflows' | '/tools' | '/vendor'
+  to:
+    | '/'
+    | '/ar'
+    | '/cash-flow'
+    | '/cogs'
+    | '/distributors'
+    | '/health'
+    | '/kpis'
+    | '/marketing'
+    | '/payments'
+    | '/profitability'
+    | '/projection'
+    | '/reports'
+    | '/sales-cash'
+    | '/salons'
+    | '/stock-count'
+    | '/stock-outflows'
+    | '/tools'
+    | '/vendor'
+  id:
+    | '__root__'
+    | '/'
+    | '/ar'
+    | '/cash-flow'
+    | '/cogs'
+    | '/distributors'
+    | '/health'
+    | '/kpis'
+    | '/marketing'
+    | '/payments'
+    | '/profitability'
+    | '/projection'
+    | '/reports'
+    | '/sales-cash'
+    | '/salons'
+    | '/stock-count'
+    | '/stock-outflows'
+    | '/tools'
+    | '/vendor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
