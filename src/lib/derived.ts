@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 
 import { addMonths, endOfMonth, monthKeys } from "./engine/dates";
-import { distributorPositions } from "./engine/distributors";
+import type { ArInvoice } from "./engine/ar";
+import { distributorPositions, invoicePaid } from "./engine/distributors";
+import type { ChannelRecord } from "./engine/outflows";
 import {
   cashFlowOutlook,
   paymentPlanByMonth,
@@ -296,4 +298,58 @@ export function useProductProfit(months: string[], previousMonths: string[] = NO
     overheadRows,
     prevOverheadRows,
   ]);
+}
+
+// ---------------------------------------------------------------- AR and stock outflow records
+
+const FINANCE_OWNER = {
+  ownerId: "E-DF",
+  ownerName: "Director Finance",
+  ownerEmail: "finance@controlledchaoshair.com",
+};
+
+/** All AR invoices: salon & wholesale from the AR sample + distributor invoices (converted to USD). */
+export function useArInvoices(): ArInvoice[] {
+  const { data } = useStore();
+  return useMemo(() => {
+    const dist: ArInvoice[] = data.distributorInvoices.map((i) => {
+      const d = data.distributors.find((x) => x.id === i.distributorId);
+      return {
+        id: i.id,
+        customerId: i.distributorId,
+        customerName: d?.name ?? i.distributorId,
+        customerType: "Distributor" as const,
+        ...FINANCE_OWNER,
+        date: i.date,
+        dueDate: i.dueDate,
+        amount: i.amount,
+        paid: invoicePaid(i),
+        currency: d?.currency ?? "USD",
+        fxToUsd: d?.fxToUsd ?? 1,
+      };
+    });
+    return [...data.arInvoices, ...dist];
+  }, [data.arInvoices, data.distributorInvoices, data.distributors]);
+}
+
+/** Channel records plus distributor / consignment shipments from the distributor module. */
+export function useOutflowRecords(): ChannelRecord[] {
+  const { data } = useStore();
+  return useMemo(() => {
+    const consignment: ChannelRecord[] = data.consignmentMovements
+      .filter((m) => m.type === "Shipment to Distributor")
+      .map((m) => ({
+        id: `CON-${m.id}`,
+        source: "Distributor Shipment",
+        reference: m.reference,
+        date: m.date,
+        sku: m.sku,
+        qty: m.qty,
+        receivedQty: null,
+        closed: false,
+        requestedBy: null,
+        note: data.distributors.find((d) => d.id === m.distributorId)?.name ?? "",
+      }));
+    return [...data.channelRecords, ...consignment];
+  }, [data.channelRecords, data.consignmentMovements, data.distributors]);
 }

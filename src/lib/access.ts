@@ -196,6 +196,75 @@ export const MODULES: ModuleDef[] = [
   },
 ];
 
+// Six menu sections. Each section's modules show as tabs at the top of the page.
+export type SectionId = "home" | "stock" | "money" | "profit" | "sales" | "team";
+
+export interface SectionDef {
+  id: SectionId;
+  label: string;
+  icon: string;
+  modules: { id: ModuleId; tab: string }[];
+}
+
+export const SECTIONS: SectionDef[] = [
+  { id: "home", label: "Home", icon: "⌂", modules: [{ id: "dashboard", tab: "Home" }] },
+  {
+    id: "stock",
+    label: "Stock & Purchasing",
+    icon: "▥",
+    modules: [
+      { id: "projection", tab: "What to order" },
+      { id: "vendor", tab: "POs & vendors" },
+      { id: "stock-count", tab: "Stock count" },
+      { id: "outflows", tab: "Stock movements" },
+      { id: "cogs", tab: "Product cost" },
+    ],
+  },
+  {
+    id: "money",
+    label: "Money",
+    icon: "$",
+    modules: [
+      { id: "cash-flow", tab: "Cash flow" },
+      { id: "payments", tab: "Payments due" },
+      { id: "ar", tab: "Owed to us" },
+      { id: "sales-cash", tab: "Sales vs cash" },
+      { id: "tools", tab: "Tools & subscriptions" },
+    ],
+  },
+  {
+    id: "profit",
+    label: "Profit",
+    icon: "%",
+    modules: [
+      { id: "profitability", tab: "Profit" },
+      { id: "health", tab: "Company health" },
+    ],
+  },
+  {
+    id: "sales",
+    label: "Sales & Marketing",
+    icon: "◎",
+    modules: [
+      { id: "distributors", tab: "Distributors" },
+      { id: "salons", tab: "Salons" },
+      { id: "marketing", tab: "Ads & campaigns" },
+    ],
+  },
+  { id: "team", label: "Team", icon: "★", modules: [{ id: "kpis", tab: "KPIs & bonuses" }] },
+];
+
+export function sectionOf(module: ModuleId): SectionDef | undefined {
+  return SECTIONS.find((s) => s.modules.some((m) => m.id === module));
+}
+
+/** The section's modules this role may open, in tab order. */
+export function visibleTabs(section: SectionDef, role: Role) {
+  return section.modules
+    .filter((m) => access(role, m.id))
+    .map((m) => ({ ...m, path: MODULES.find((x) => x.id === m.id)!.path }));
+}
+
 const FINANCE: Role[] = ["Director Finance", "Deputy Manager Finance", "Sr Finance Officer"];
 
 const MATRIX: Record<ModuleId, Partial<Record<Role, Access>>> = {

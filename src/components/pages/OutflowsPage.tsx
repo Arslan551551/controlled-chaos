@@ -33,6 +33,7 @@ import {
   type MatchStatus,
   type OutflowMatch,
 } from "@/lib/engine/outflows";
+import { useOutflowRecords } from "@/lib/derived";
 import { int, money, pct } from "@/lib/format";
 import { FINANCE_EMAIL } from "@/lib/sample/people";
 import { newId, useCosting, useStore, type OutboxEmail } from "@/lib/store";
@@ -53,32 +54,10 @@ export function OutflowsPage() {
   );
 }
 
-/** Channel records plus distributor / consignment shipments from the distributor module. */
-function useRecords(): ChannelRecord[] {
-  const { data } = useStore();
-  return useMemo(() => {
-    const consignment: ChannelRecord[] = data.consignmentMovements
-      .filter((m) => m.type === "Shipment to Distributor")
-      .map((m) => ({
-        id: `CON-${m.id}`,
-        source: "Distributor Shipment",
-        reference: m.reference,
-        date: m.date,
-        sku: m.sku,
-        qty: m.qty,
-        receivedQty: null,
-        closed: false,
-        requestedBy: null,
-        note: data.distributors.find((d) => d.id === m.distributorId)?.name ?? "",
-      }));
-    return [...data.channelRecords, ...consignment];
-  }, [data.channelRecords, data.consignmentMovements, data.distributors]);
-}
-
 function OutflowsInner() {
   const { data, role, asOf, update, flash } = useStore();
   const { unitCost } = useCosting();
-  const records = useRecords();
+  const records = useOutflowRecords();
   const canEdit = useCanEdit("outflows");
   const finance = isFinance(role);
   const [tab, setTab] = useState<Tab>("outflows");
