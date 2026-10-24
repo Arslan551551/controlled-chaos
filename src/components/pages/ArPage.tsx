@@ -33,39 +33,9 @@ import {
   type ReminderRules,
 } from "@/lib/engine/ar";
 import { formatDate } from "@/lib/engine/dates";
-import { invoicePaid } from "@/lib/engine/distributors";
+import { useArInvoices } from "@/lib/derived";
 import { money, usd } from "@/lib/format";
 import { newId, useStore, type OutboxEmail } from "@/lib/store";
-
-const FINANCE_OWNER = {
-  ownerId: "E-DF",
-  ownerName: "Director Finance",
-  ownerEmail: "finance@controlledchaoshair.com",
-};
-
-/** All AR invoices: salon & wholesale from the AR sample + distributor invoices (converted to USD). */
-function useArInvoices(): ArInvoice[] {
-  const { data } = useStore();
-  return useMemo(() => {
-    const dist: ArInvoice[] = data.distributorInvoices.map((i) => {
-      const d = data.distributors.find((x) => x.id === i.distributorId);
-      return {
-        id: i.id,
-        customerId: i.distributorId,
-        customerName: d?.name ?? i.distributorId,
-        customerType: "Distributor" as const,
-        ...FINANCE_OWNER,
-        date: i.date,
-        dueDate: i.dueDate,
-        amount: i.amount,
-        paid: invoicePaid(i),
-        currency: d?.currency ?? "USD",
-        fxToUsd: d?.fxToUsd ?? 1,
-      };
-    });
-    return [...data.arInvoices, ...dist];
-  }, [data.arInvoices, data.distributorInvoices, data.distributors]);
-}
 
 type ArTab = "position" | "invoices" | "reminders" | "rules";
 

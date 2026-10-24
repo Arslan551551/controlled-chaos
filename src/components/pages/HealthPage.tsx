@@ -232,7 +232,7 @@ function HealthContent() {
                 <div className="muted" style={{ fontSize: 12 }}>
                   Possible savings: <strong className="pos">{usd(totalSavings)}</strong> per month
                 </div>
-                <Assume title="Score starts at 100: −15 per critical signal, −5 per warning. Targets can be changed.">
+                <Assume title="Score starts at 100. Each area counts once by its worst signal: −20 if critical, −8 if only warnings. Targets can be changed.">
                   How the score works
                 </Assume>
               </div>

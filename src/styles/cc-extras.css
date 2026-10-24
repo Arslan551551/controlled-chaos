@@ -1,6 +1,119 @@
 /* Additions for the expanded portal, built from the v16 tokens
    (navy sidebar, grey background, white cards, same badge colours). */
 
+/* Section tabs: one row under the top bar for the pages inside a menu section */
+.section-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.88);
+  border-bottom: 1px solid #e0e5eb;
+  overflow-x: auto;
+  position: sticky;
+  top: 66px;
+  z-index: 19;
+}
+.section-tabs a {
+  padding: 12px 14px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--muted);
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.section-tabs a:hover {
+  color: var(--text);
+}
+.section-tabs a.active {
+  color: var(--navy, #12345a);
+  border-bottom-color: var(--blue, #2f6fed);
+}
+.export-menu {
+  position: relative;
+}
+.export-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: #fff;
+  border: 1px solid #d7dee7;
+  border-radius: 12px;
+  box-shadow: 0 12px 30px rgba(18, 52, 90, 0.14);
+  padding: 6px;
+  min-width: 240px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+.export-pop button,
+.export-pop a {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.export-pop button:hover,
+.export-pop a:hover {
+  background: #f1f4f8;
+}
+
+/* Home */
+.home-band {
+  margin-bottom: 18px;
+}
+.home-band-title {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+  margin: 0 0 8px 2px;
+}
+.home-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.home-kpis .kpi-value.bad {
+  color: #cf3f4f;
+}
+.attention-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.attention-filters button {
+  border: 1px solid #d7dee7;
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+}
+.attention-filters button.active {
+  background: #12345a;
+  border-color: #12345a;
+  color: #fff;
+}
+.area-tag {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--muted);
+  margin-right: 6px;
+}
+
 /* Sidebar with grouped navigation */
 .sidebar {
   overflow: hidden;

@@ -215,11 +215,18 @@ export function healthSignals(i: HealthInput): HealthSignal[] {
   );
 }
 
-/** 0–100 score: start at 100, −15 per critical, −5 per warning. */
+/**
+ * 0–100 score. Each area counts once, by its worst signal: −20 for a critical area,
+ * −8 for an area with only warnings. Many small items in one area (e.g. a few unused
+ * seats) don't sink the whole score.
+ */
 export function healthScore(signals: HealthSignal[]): number {
-  const s = signals.reduce(
-    (a, x) => a - (x.severity === "critical" ? 15 : x.severity === "warning" ? 5 : 0),
-    100,
-  );
+  const worst = new Map<HealthSignal["area"], Severity>();
+  for (const x of signals) {
+    if (x.severity === "good") continue;
+    if (worst.get(x.area) !== "critical") worst.set(x.area, x.severity);
+  }
+  let s = 100;
+  for (const sev of worst.values()) s -= sev === "critical" ? 20 : 8;
   return Math.max(0, Math.min(100, s));
 }
