@@ -9,8 +9,98 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as CashFlowRouteImport } from './routes/cash-flow'
+import { Route as CogsRouteImport } from './routes/cogs'
+import { Route as DistributorsRouteImport } from './routes/distributors'
+import { Route as HealthRouteImport } from './routes/health'
+import { Route as KpisRouteImport } from './routes/kpis'
+import { Route as MarketingRouteImport } from './routes/marketing'
+import { Route as PaymentsRouteImport } from './routes/payments'
+import { Route as ProfitabilityRouteImport } from './routes/profitability'
+import { Route as ProjectionRouteImport } from './routes/projection'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SalesCashRouteImport } from './routes/sales-cash'
+import { Route as SalonsRouteImport } from './routes/salons'
+import { Route as StockCountRouteImport } from './routes/stock-count'
+import { Route as ToolsRouteImport } from './routes/tools'
+import { Route as VendorRouteImport } from './routes/vendor'
 import { Route as IndexRouteImport } from './routes/index'
 
+const CashFlowRoute = CashFlowRouteImport.update({
+  id: '/cash-flow',
+  path: '/cash-flow',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CogsRoute = CogsRouteImport.update({
+  id: '/cogs',
+  path: '/cogs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DistributorsRoute = DistributorsRouteImport.update({
+  id: '/distributors',
+  path: '/distributors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthRoute = HealthRouteImport.update({
+  id: '/health',
+  path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KpisRoute = KpisRouteImport.update({
+  id: '/kpis',
+  path: '/kpis',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketingRoute = MarketingRouteImport.update({
+  id: '/marketing',
+  path: '/marketing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentsRoute = PaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfitabilityRoute = ProfitabilityRouteImport.update({
+  id: '/profitability',
+  path: '/profitability',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectionRoute = ProjectionRouteImport.update({
+  id: '/projection',
+  path: '/projection',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalesCashRoute = SalesCashRouteImport.update({
+  id: '/sales-cash',
+  path: '/sales-cash',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalonsRoute = SalonsRouteImport.update({
+  id: '/salons',
+  path: '/salons',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StockCountRoute = StockCountRouteImport.update({
+  id: '/stock-count',
+  path: '/stock-count',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ToolsRoute = ToolsRouteImport.update({
+  id: '/tools',
+  path: '/tools',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VendorRoute = VendorRouteImport.update({
+  id: '/vendor',
+  path: '/vendor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,24 +109,84 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cash-flow': typeof CashFlowRoute
+  '/cogs': typeof CogsRoute
+  '/distributors': typeof DistributorsRoute
+  '/health': typeof HealthRoute
+  '/kpis': typeof KpisRoute
+  '/marketing': typeof MarketingRoute
+  '/payments': typeof PaymentsRoute
+  '/profitability': typeof ProfitabilityRoute
+  '/projection': typeof ProjectionRoute
+  '/reports': typeof ReportsRoute
+  '/sales-cash': typeof SalesCashRoute
+  '/salons': typeof SalonsRoute
+  '/stock-count': typeof StockCountRoute
+  '/tools': typeof ToolsRoute
+  '/vendor': typeof VendorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cash-flow': typeof CashFlowRoute
+  '/cogs': typeof CogsRoute
+  '/distributors': typeof DistributorsRoute
+  '/health': typeof HealthRoute
+  '/kpis': typeof KpisRoute
+  '/marketing': typeof MarketingRoute
+  '/payments': typeof PaymentsRoute
+  '/profitability': typeof ProfitabilityRoute
+  '/projection': typeof ProjectionRoute
+  '/reports': typeof ReportsRoute
+  '/sales-cash': typeof SalesCashRoute
+  '/salons': typeof SalonsRoute
+  '/stock-count': typeof StockCountRoute
+  '/tools': typeof ToolsRoute
+  '/vendor': typeof VendorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cash-flow': typeof CashFlowRoute
+  '/cogs': typeof CogsRoute
+  '/distributors': typeof DistributorsRoute
+  '/health': typeof HealthRoute
+  '/kpis': typeof KpisRoute
+  '/marketing': typeof MarketingRoute
+  '/payments': typeof PaymentsRoute
+  '/profitability': typeof ProfitabilityRoute
+  '/projection': typeof ProjectionRoute
+  '/reports': typeof ReportsRoute
+  '/sales-cash': typeof SalesCashRoute
+  '/salons': typeof SalonsRoute
+  '/stock-count': typeof StockCountRoute
+  '/tools': typeof ToolsRoute
+  '/vendor': typeof VendorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/tools' | '/vendor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/tools' | '/vendor'
+  id: '__root__' | '/' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/tools' | '/vendor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CashFlowRoute: typeof CashFlowRoute
+  CogsRoute: typeof CogsRoute
+  DistributorsRoute: typeof DistributorsRoute
+  HealthRoute: typeof HealthRoute
+  KpisRoute: typeof KpisRoute
+  MarketingRoute: typeof MarketingRoute
+  PaymentsRoute: typeof PaymentsRoute
+  ProfitabilityRoute: typeof ProfitabilityRoute
+  ProjectionRoute: typeof ProjectionRoute
+  ReportsRoute: typeof ReportsRoute
+  SalesCashRoute: typeof SalesCashRoute
+  SalonsRoute: typeof SalonsRoute
+  StockCountRoute: typeof StockCountRoute
+  ToolsRoute: typeof ToolsRoute
+  VendorRoute: typeof VendorRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +198,131 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cash-flow': {
+      id: '/cash-flow'
+      path: '/cash-flow'
+      fullPath: '/cash-flow'
+      preLoaderRoute: typeof CashFlowRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cogs': {
+      id: '/cogs'
+      path: '/cogs'
+      fullPath: '/cogs'
+      preLoaderRoute: typeof CogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/distributors': {
+      id: '/distributors'
+      path: '/distributors'
+      fullPath: '/distributors'
+      preLoaderRoute: typeof DistributorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/health': {
+      id: '/health'
+      path: '/health'
+      fullPath: '/health'
+      preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kpis': {
+      id: '/kpis'
+      path: '/kpis'
+      fullPath: '/kpis'
+      preLoaderRoute: typeof KpisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketing': {
+      id: '/marketing'
+      path: '/marketing'
+      fullPath: '/marketing'
+      preLoaderRoute: typeof MarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payments': {
+      id: '/payments'
+      path: '/payments'
+      fullPath: '/payments'
+      preLoaderRoute: typeof PaymentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profitability': {
+      id: '/profitability'
+      path: '/profitability'
+      fullPath: '/profitability'
+      preLoaderRoute: typeof ProfitabilityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projection': {
+      id: '/projection'
+      path: '/projection'
+      fullPath: '/projection'
+      preLoaderRoute: typeof ProjectionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sales-cash': {
+      id: '/sales-cash'
+      path: '/sales-cash'
+      fullPath: '/sales-cash'
+      preLoaderRoute: typeof SalesCashRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/salons': {
+      id: '/salons'
+      path: '/salons'
+      fullPath: '/salons'
+      preLoaderRoute: typeof SalonsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stock-count': {
+      id: '/stock-count'
+      path: '/stock-count'
+      fullPath: '/stock-count'
+      preLoaderRoute: typeof StockCountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tools': {
+      id: '/tools'
+      path: '/tools'
+      fullPath: '/tools'
+      preLoaderRoute: typeof ToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vendor': {
+      id: '/vendor'
+      path: '/vendor'
+      fullPath: '/vendor'
+      preLoaderRoute: typeof VendorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CashFlowRoute: CashFlowRoute,
+  CogsRoute: CogsRoute,
+  DistributorsRoute: DistributorsRoute,
+  HealthRoute: HealthRoute,
+  KpisRoute: KpisRoute,
+  MarketingRoute: MarketingRoute,
+  PaymentsRoute: PaymentsRoute,
+  ProfitabilityRoute: ProfitabilityRoute,
+  ProjectionRoute: ProjectionRoute,
+  ReportsRoute: ReportsRoute,
+  SalesCashRoute: SalesCashRoute,
+  SalonsRoute: SalonsRoute,
+  StockCountRoute: StockCountRoute,
+  ToolsRoute: ToolsRoute,
+  VendorRoute: VendorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

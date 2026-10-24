@@ -129,9 +129,11 @@ export const untaggedShopifyOrders = [
 // ---------------------------------------------------------------- distributors
 
 export const distributors: Distributor[] = [
-  { id: "D-MALYS", name: "Maly's", legalName: "Excel Salon Products, Inc d/b/a Malys@ManocoBlue", contact: "Scott Missad", email: "malys@example.com", city: "Grand Rapids, MI", country: "United States", currency: "USD", model: "Wholesale", paymentTermsDays: 30, creditLimit: 40000, marketingFundPct: 4, status: "Active" },
-  { id: "D-BSE", name: "Beauty Supply East", legalName: "Beauty Supply East LLC", contact: "Account Manager", email: "ap@bse.example", city: "Newark, NJ", country: "United States", currency: "USD", model: "Wholesale", paymentTermsDays: 45, creditLimit: 60000, marketingFundPct: 3, status: "Active" },
-  { id: "D-NL", name: "Netherlands Distributor", legalName: "Placeholder B.V.", contact: "Account Manager", email: "orders@nl.example", city: "Rotterdam", country: "Netherlands", currency: "EUR", model: "Consignment", paymentTermsDays: 30, creditLimit: 0, marketingFundPct: 0, status: "Active" },
+  { id: "D-MALYS", name: "Maly's", legalName: "Excel Salon Products, Inc d/b/a Malys@ManocoBlue", contact: "Scott Missad", email: "malys@example.com", city: "Grand Rapids, MI", country: "United States", currency: "USD", model: "Wholesale", paymentTermsDays: 30, creditLimit: 40000, marketingFundPct: 4, status: "Active", fxToUsd: 1, priceList: {} },
+  { id: "D-BSE", name: "Beauty Supply East", legalName: "Beauty Supply East LLC", contact: "Account Manager", email: "ap@bse.example", city: "Newark, NJ", country: "United States", currency: "USD", model: "Wholesale", paymentTermsDays: 45, creditLimit: 60000, marketingFundPct: 3, status: "Active", fxToUsd: 1, priceList: {} },
+  // Netherlands consignment distributor — figures from "JB Report.xlsx" (stock sent, June–Aug sales, EUR price list, 1 EUR = 1.165365 USD)
+  { id: "D-NL", name: "John Beeren (JB)", legalName: "John Beeren", contact: "John Beeren", email: "jb@example.nl", city: "Netherlands", country: "Netherlands", currency: "EUR", model: "Consignment", paymentTermsDays: 30, creditLimit: 0, marketingFundPct: 0, status: "Active", fxToUsd: 1.165365,
+    priceList: { "32-OZ-HAIRCLEANSER": 35.19, "32-OZ-HAIRMOISTURIZER": 34.16, "32-OZ-CURLCREME": 43.12, MOISTAHR8OZPO: 12.08, CLNSAHR8OZGFF: 12.42, CONTCHAOSCC5OZ: 10.01, CONTCHAOSCC3OZ: 8.63, "CC-LICS-3.4OZ": 6.9, "CC-LICS-8OZ": 11.73 } },
 ];
 
 const inv = (id: string, distributorId: string, date: string, amount: number, payments: DistributorInvoice["payments"], terms = 30): DistributorInvoice => {
@@ -150,15 +152,13 @@ export const distributorInvoices: DistributorInvoice[] = [
   inv("30350", "D-MALYS", "2026-07-02", 2907.03, [{ date: "2026-07-24", amount: 2907.03 }]),
   inv("30531", "D-MALYS", "2026-09-10", 536.76, [{ date: "2026-10-02", amount: 87.78, method: "Credit / Fund Applied" }, { date: "2026-10-02", amount: 448.98, method: "Cash" }]),
   inv("30588", "D-MALYS", "2026-10-06", 6840, []),
+  // John Beeren (consignment) — invoiced in EUR for units sold only. Payment status not yet confirmed.
+  inv("JB-2026-08", "D-NL", "2026-09-05", 3714.3, []),
   // Beauty Supply East
   inv("30410", "D-BSE", "2026-07-15", 18400, [{ date: "2026-08-28", amount: 18400 }], 45),
   inv("30472", "D-BSE", "2026-08-20", 22150, [{ date: "2026-10-03", amount: 12000 }], 45),
   inv("30515", "D-BSE", "2026-09-18", 15800, [], 45),
   inv("30590", "D-BSE", "2026-10-10", 9600, [], 45),
-  // Netherlands consignment — invoiced from reported sales
-  inv("NL-0007", "D-NL", "2026-08-05", 7380, [{ date: "2026-09-02", amount: 7380 }]),
-  inv("NL-0008", "D-NL", "2026-09-04", 5940, [{ date: "2026-10-06", amount: 5940 }]),
-  inv("NL-0009", "D-NL", "2026-10-05", 6660, []),
 ];
 
 const le = (id: string, distributorId: string, ledger: LedgerEntry["ledger"], date: string, type: LedgerEntry["type"], ref: string, description: string, plus: number, minus: number, source: LedgerEntry["source"] = "Manual", support: string | null = null): LedgerEntry =>
@@ -179,16 +179,20 @@ export const distributorLedger: LedgerEntry[] = [
 ];
 
 export const consignmentMovements: ConsignmentMovement[] = [
-  { id: "CM-1", distributorId: "D-NL", date: "2026-06-10", sku: "CONTCHAOSCC5OZ", type: "Shipment to Distributor", qty: 4000, reference: "Shipment NL-SHP-03" },
-  { id: "CM-2", distributorId: "D-NL", date: "2026-06-10", sku: "MOISTAHR8OZPO", type: "Shipment to Distributor", qty: 2500, reference: "Shipment NL-SHP-03" },
-  { id: "CM-3", distributorId: "D-NL", date: "2026-07-31", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 820, unitPrice: 6, invoiceId: "NL-0007", reference: "July sell-through report" },
-  { id: "CM-4", distributorId: "D-NL", date: "2026-07-31", sku: "MOISTAHR8OZPO", type: "Reported Sale", qty: 410, unitPrice: 6, invoiceId: "NL-0007", reference: "July sell-through report" },
-  { id: "CM-5", distributorId: "D-NL", date: "2026-08-31", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 650, unitPrice: 6, invoiceId: "NL-0008", reference: "August sell-through report" },
-  { id: "CM-6", distributorId: "D-NL", date: "2026-08-31", sku: "MOISTAHR8OZPO", type: "Reported Sale", qty: 340, unitPrice: 6, invoiceId: "NL-0008", reference: "August sell-through report" },
-  { id: "CM-7", distributorId: "D-NL", date: "2026-09-30", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 720, unitPrice: 6, invoiceId: "NL-0009", reference: "September sell-through report" },
-  { id: "CM-8", distributorId: "D-NL", date: "2026-09-30", sku: "MOISTAHR8OZPO", type: "Reported Sale", qty: 390, unitPrice: 6, invoiceId: "NL-0009", reference: "September sell-through report" },
-  { id: "CM-9", distributorId: "D-NL", date: "2026-09-30", sku: "MOISTAHR8OZPO", type: "Adjustment", qty: -12, reference: "Damaged in their warehouse" },
-  { id: "CM-10", distributorId: "D-NL", date: "2026-10-20", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 310, unitPrice: 6, invoiceId: null, reference: "October mid-month report" },
+  { id: "CM-S1", distributorId: "D-NL", date: "2026-05-28", sku: "32-OZ-HAIRCLEANSER", type: "Shipment to Distributor", qty: 42, reference: "Stock sent to John Beeren" },
+  { id: "CM-S2", distributorId: "D-NL", date: "2026-05-28", sku: "32-OZ-HAIRMOISTURIZER", type: "Shipment to Distributor", qty: 78, reference: "Stock sent to John Beeren" },
+  { id: "CM-S3", distributorId: "D-NL", date: "2026-05-28", sku: "32-OZ-CURLCREME", type: "Shipment to Distributor", qty: 120, reference: "Stock sent to John Beeren" },
+  { id: "CM-S4", distributorId: "D-NL", date: "2026-05-28", sku: "MOISTAHR8OZPO", type: "Shipment to Distributor", qty: 696, reference: "Stock sent to John Beeren" },
+  { id: "CM-S5", distributorId: "D-NL", date: "2026-05-28", sku: "CLNSAHR8OZGFF", type: "Shipment to Distributor", qty: 480, reference: "Stock sent to John Beeren" },
+  { id: "CM-S6", distributorId: "D-NL", date: "2026-05-28", sku: "CONTCHAOSCC5OZ", type: "Shipment to Distributor", qty: 696, reference: "Stock sent to John Beeren" },
+  { id: "CM-S7", distributorId: "D-NL", date: "2026-05-28", sku: "CONTCHAOSCC3OZ", type: "Shipment to Distributor", qty: 192, reference: "Stock sent to John Beeren" },
+  { id: "CM-S8", distributorId: "D-NL", date: "2026-05-28", sku: "CC-LICS-3.4OZ", type: "Shipment to Distributor", qty: 144, reference: "Stock sent to John Beeren" },
+  { id: "CM-S9", distributorId: "D-NL", date: "2026-05-28", sku: "CC-LICS-8OZ", type: "Shipment to Distributor", qty: 240, reference: "Stock sent to John Beeren" },
+  { id: "CM-R1", distributorId: "D-NL", date: "2026-08-31", sku: "MOISTAHR8OZPO", type: "Reported Sale", qty: 77, amount: 919.28, invoiceId: "JB-2026-08", reference: "JB sales report June–Aug ($1071.3 ÷ 1.165365)" },
+  { id: "CM-R2", distributorId: "D-NL", date: "2026-08-31", sku: "CONTCHAOSCC5OZ", type: "Reported Sale", qty: 77, amount: 773.42, invoiceId: "JB-2026-08", reference: "JB sales report June–Aug ($901.32 ÷ 1.165365)" },
+  { id: "CM-R3", distributorId: "D-NL", date: "2026-08-31", sku: "32-OZ-CURLCREME", type: "Reported Sale", qty: 23, amount: 987.65, invoiceId: "JB-2026-08", reference: "JB sales report June–Aug ($1150.97 ÷ 1.165365)" },
+  { id: "CM-R4", distributorId: "D-NL", date: "2026-08-31", sku: "32-OZ-HAIRMOISTURIZER", type: "Reported Sale", qty: 26, amount: 884.91, invoiceId: "JB-2026-08", reference: "JB sales report June–Aug ($1031.24 ÷ 1.165365)" },
+  { id: "CM-R5", distributorId: "D-NL", date: "2026-08-31", sku: "CLNSAHR8OZGFF", type: "Reported Sale", qty: 12, amount: 149.04, invoiceId: "JB-2026-08", reference: "JB sales report June–Aug ($173.69 ÷ 1.165365)" },
 ];
 
 // ---------------------------------------------------------------- stock counts

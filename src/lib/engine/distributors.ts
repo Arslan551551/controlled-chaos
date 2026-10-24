@@ -28,6 +28,10 @@ export interface Distributor {
   /** Marketing fund created on each invoice payment, e.g. 4 = 4% of invoice paid. */
   marketingFundPct: number;
   status: "Active" | "On Hold" | "Inactive";
+  /** 1 unit of the distributor's currency in USD (e.g. 1 EUR = 1.165365 USD). */
+  fxToUsd: number;
+  /** Agreed unit price per SKU in the distributor's currency (consignment valuation, invoicing). */
+  priceList: Record<string, number>;
 }
 
 export interface InvoicePayment {
@@ -194,8 +198,10 @@ export interface ConsignmentMovement {
   sku: string;
   type: "Shipment to Distributor" | "Reported Sale" | "Return to Us" | "Adjustment";
   qty: number;
-  /** Agreed selling price to the distributor, for reported sales. */
+  /** Agreed selling price to the distributor, for reported sales (distributor currency). */
   unitPrice?: number;
+  /** Reported sales value, when the distributor reports an amount rather than a unit price. */
+  amount?: number;
   /** Invoice raised for a reported sale; null = still to invoice. */
   invoiceId?: string | null;
   reference: string;
@@ -210,13 +216,21 @@ export interface ConsignmentSkuPosition {
   onHandAtDistributor: number;
   soldNotInvoicedQty: number;
   soldNotInvoicedValue: number;
+  /** Value of reported sales (distributor currency). */
+  salesValue: number;
+  pctSold: number;
   stockValueAtCost: number;
+  /** Remaining stock at the agreed price, in USD (as in the JB report). */
+  remainingValueAtPriceUsd: number;
 }
+
+const saleValue = (m: ConsignmentMovement) => m.amount ?? m.qty * (m.unitPrice ?? 0);
 
 export function consignmentPosition(
   movements: ConsignmentMovement[],
   distributorId: string,
   unitCost: (sku: string) => number,
+  price: { priceList: Record<string, number>; fxToUsd: number } = { priceList: {}, fxToUsd: 1 },
 ): ConsignmentSkuPosition[] {
   const mine = movements.filter((m) => m.distributorId === distributorId);
   const skus = [...new Set(mine.map((m) => m.sku))].sort();
@@ -237,8 +251,11 @@ export function consignmentPosition(
       adjusted,
       onHandAtDistributor: onHand,
       soldNotInvoicedQty: uninvoiced.reduce((a, m) => a + m.qty, 0),
-      soldNotInvoicedValue: uninvoiced.reduce((a, m) => a + m.qty * (m.unitPrice ?? 0), 0),
+      soldNotInvoicedValue: Math.round(uninvoiced.reduce((a, m) => a + saleValue(m), 0) * 100) / 100,
+      salesValue: Math.round(rows.filter((m) => m.type === "Reported Sale").reduce((a, m) => a + saleValue(m), 0) * 100) / 100,
+      pctSold: shipped > 0 ? sold / shipped : 0,
       stockValueAtCost: Math.round(onHand * unitCost(sku) * 100) / 100,
+      remainingValueAtPriceUsd: Math.round(onHand * (price.priceList[sku] ?? 0) * price.fxToUsd * 100) / 100,
     };
   });
 }

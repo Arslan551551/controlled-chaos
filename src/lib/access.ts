@@ -41,7 +41,9 @@ export type ModuleId =
   | "kpis"
   | "tools"
   | "reports"
-  | "health";
+  | "health"
+  | "ar"
+  | "outflows";
 
 export type Access = "edit" | "view" | null;
 
@@ -61,10 +63,12 @@ export const MODULES: ModuleDef[] = [
   { id: "projection", path: "/projection", label: "PO Projection", icon: "▥", group: "Inventory & Purchasing", subtitle: "Finished Goods and Empty Tube planning" },
   { id: "vendor", path: "/vendor", label: "PO & Vendor Management", icon: "▤", group: "Inventory & Purchasing", subtitle: "Operational workspace maintained by Supply Chain" },
   { id: "stock-count", path: "/stock-count", label: "Stock Count", icon: "✓", group: "Inventory & Purchasing", subtitle: "Physical count vs ShipStation" },
+  { id: "outflows", path: "/stock-outflows", label: "Stock Outflow Recon", icon: "⇲", group: "Inventory & Purchasing", subtitle: "Every stock decrease explained by a channel record" },
   { id: "cogs", path: "/cogs", label: "COGS", icon: "◉", group: "Inventory & Purchasing", subtitle: "Tentative and final packaged SKU cost" },
   { id: "payments", path: "/payments", label: "Payment Planner", icon: "▦", group: "Finance", subtitle: "PO and Non-PO payments by month" },
   { id: "cash-flow", path: "/cash-flow", label: "Cash Flow", icon: "≋", group: "Finance", subtitle: "3-month outlook from QuickBooks bank" },
   { id: "sales-cash", path: "/sales-cash", label: "Sales vs Cash", icon: "⇆", group: "Finance", subtitle: "Sales by channel vs cash received in bank" },
+  { id: "ar", path: "/ar", label: "AR & Collections", icon: "⏱", group: "Finance", subtitle: "What customers owe us, with internal reminders" },
   { id: "profitability", path: "/profitability", label: "Profitability", icon: "◔", group: "Finance", subtitle: "Profit by marketplace with expense splits" },
   { id: "salons", path: "/salons", label: "Salons", icon: "✂", group: "Sales Channels", subtitle: "Salon accounts, orders and commission" },
   { id: "distributors", path: "/distributors", label: "Distributors", icon: "⛟", group: "Sales Channels", subtitle: "Ledgers, invoices and consignment stock" },
@@ -92,6 +96,8 @@ const MATRIX: Record<ModuleId, Partial<Record<Role, Access>>> = {
   distributors: { CEO: "view", ...fin("edit") },
   marketing: { CEO: "view", "Director Finance": "view", "Marketing Manager": "edit", Consultant: "view" },
   kpis: { CEO: "view", "Director Finance": "edit", "Supply Chain / Viviene": "edit", Warehouse: "view", "Marketing Manager": "edit", "Salon Sales Rep": "view", Consultant: "view", "Deputy Manager Finance": "view", "Sr Finance Officer": "view" },
+  ar: { CEO: "view", ...fin("edit"), "Salon Sales Rep": "view" },
+  outflows: { CEO: "view", ...fin("edit"), "Supply Chain / Viviene": "view", Warehouse: "edit" },
   tools: { CEO: "view", ...fin("edit"), "Supply Chain / Viviene": "view", "Marketing Manager": "view" },
 };
 

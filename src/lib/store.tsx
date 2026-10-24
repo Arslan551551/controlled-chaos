@@ -117,7 +117,7 @@ export function useCosting() {
       const b = [...batches].reverse().find((x) => x.sku === sku);
       if (b) return b.currentFullUnit;
       const tube = ledger.positions.get(sku);
-      return tube ? tube.weightedUnitCost : 0;
+      return tube ? tube.weightedUnitCost : (core.standardCost[sku] ?? 0);
     };
     return { ledger, batches, tubeStock, unitCost };
   }, [data.tubeLedger, data.cogsBatches, data.purchaseOrders]);

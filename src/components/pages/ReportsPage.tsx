@@ -169,7 +169,7 @@ function ReportsContent() {
         if (l.order.status === "Pending Review") row["pending"] = (row["pending"] as number) + 1;
         keys.set(k, row);
       }
-      const rows = [...keys.values()].sort((a, b) => String(a.rep).localeCompare(String(b.rep)) || String(a.month).localeCompare(String(b.month)));
+      const rows = [...keys.values()].sort((a, b) => String(a["rep"]).localeCompare(String(b["rep"])) || String(a["month"]).localeCompare(String(b["month"])));
       list.push({
         id: "salon-commission",
         group: "Sales",

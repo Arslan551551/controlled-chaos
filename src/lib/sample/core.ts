@@ -17,6 +17,12 @@ export const skus: Sku[] = [
   { sku: "CLNSAHR8OZGFF", description: "Hair Cleanser 8oz", type: "Finished Goods", cogsMethod: "Tube Fill", linkedTubeSku: "TB-CL-8OZ", supplier: "Prime Fill", moq: 10000, leadTimeDays: 62, tubeThresholdQty: 0, unitsPerBox: 24, active: true, shipStationStatus: "Complete" },
   { sku: "CCHAIRCOMBPW", description: "Peachwood Wide-Tooth Comb", type: "Accessory", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Sample Accessory Co", moq: 3000, leadTimeDays: 45, tubeThresholdQty: 0, unitsPerBox: 150, active: true, shipStationStatus: "Complete" },
   { sku: "CCHAIRBRUSH1", description: "Bamboo Boar Bristle Hairbrush", type: "Accessory", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Sample Accessory Co", moq: 3000, leadTimeDays: 45, tubeThresholdQty: 0, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
+  // Real products from the stock count sheet / JB report. Bottled, so costed as Direct Purchase (landed cost incl. bottle) — assumption.
+  { sku: "32-OZ-CURLCREME", description: "The Original Curl Creme 32oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Beauty Labs", moq: 1200, leadTimeDays: 60, tubeThresholdQty: 0, unitsPerBox: 6, active: true, shipStationStatus: "Complete" },
+  { sku: "32-OZ-HAIRMOISTURIZER", description: "Hair Moisturizer 32oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Beauty Labs", moq: 1200, leadTimeDays: 60, tubeThresholdQty: 0, unitsPerBox: 6, active: true, shipStationStatus: "Complete" },
+  { sku: "32-OZ-HAIRCLEANSER", description: "Hair Cleanser 32oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Prime Fill", moq: 1200, leadTimeDays: 60, tubeThresholdQty: 0, unitsPerBox: 6, active: true, shipStationStatus: "Complete" },
+  { sku: "CC-LICS-8OZ", description: "Leave-In Conditioner Spray 8oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Prime Fill", moq: 5000, leadTimeDays: 70, tubeThresholdQty: 0, unitsPerBox: 24, active: true, shipStationStatus: "Complete" },
+  { sku: "CC-LICS-3.4OZ", description: "Leave-In Conditioner Spray 3.4oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Prime Fill", moq: 5000, leadTimeDays: 70, tubeThresholdQty: 0, unitsPerBox: 24, active: true, shipStationStatus: "Complete" },
   { sku: "TB-CC-5OZ", description: "Curl Creme 5oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 10000, leadTimeDays: 82, tubeThresholdQty: 10000, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
   { sku: "TB-HM-8OZ", description: "Hair Moisturizer 8oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 5000, leadTimeDays: 35, tubeThresholdQty: 10000, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
   { sku: "TB-CC-3OZ", description: "Curl Creme 3oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 10000, leadTimeDays: 76, tubeThresholdQty: 8000, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
@@ -39,7 +45,24 @@ export const finishedGoodsStock: StockPosition[] = [
   { sku: "CCHAIRCOMBPW", location: "Georgia", qty: 6000, sourceUpdatedAt: SYNC },
   { sku: "CCHAIRBRUSH1", location: "Brentwood", qty: 2800, sourceUpdatedAt: SYNC },
   { sku: "CCHAIRBRUSH1", location: "Georgia", qty: 3600, sourceUpdatedAt: SYNC },
+  { sku: "32-OZ-CURLCREME", location: "Brentwood", qty: 216, sourceUpdatedAt: SYNC },
+  { sku: "32-OZ-HAIRMOISTURIZER", location: "Brentwood", qty: 78, sourceUpdatedAt: SYNC },
+  { sku: "32-OZ-HAIRCLEANSER", location: "Brentwood", qty: 102, sourceUpdatedAt: SYNC },
+  { sku: "CC-LICS-8OZ", location: "Brentwood", qty: 2232, sourceUpdatedAt: SYNC },
+  { sku: "CC-LICS-3.4OZ", location: "Brentwood", qty: 5424, sourceUpdatedAt: SYNC },
 ];
+
+/**
+ * Standard landed unit cost for SKUs with no COGS batch yet (live: SKU cost master).
+ * Used for stock valuation and product profitability. Sample values.
+ */
+export const standardCost: Record<string, number> = {
+  "32-OZ-CURLCREME": 9.4,
+  "32-OZ-HAIRMOISTURIZER": 8.1,
+  "32-OZ-HAIRCLEANSER": 7.9,
+  "CC-LICS-8OZ": 2.35,
+  "CC-LICS-3.4OZ": 1.55,
+};
 
 /** Target burn per SKU: [7-day, 14-day, 30-day] average units per day. */
 const BURN: Record<string, [number, number, number]> = {
@@ -49,6 +72,11 @@ const BURN: Record<string, [number, number, number]> = {
   "CLNSAHR8OZGFF": [80, 78, 76],
   "CCHAIRCOMBPW": [33, 34, 38],
   "CCHAIRBRUSH1": [31, 29, 27],
+  "32-OZ-CURLCREME": [1.2, 1, 0.95],
+  "32-OZ-HAIRMOISTURIZER": [1.3, 1.1, 1.05],
+  "32-OZ-HAIRCLEANSER": [0.8, 0.7, 0.7],
+  "CC-LICS-8OZ": [7, 6.2, 6.1],
+  "CC-LICS-3.4OZ": [6, 5.4, 5.4],
 };
 
 const CHANNEL_MIX: [SalesChannel, number][] = [

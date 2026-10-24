@@ -432,9 +432,9 @@ function ConsignmentSection({ distributor, canEdit }: { distributor: Distributor
   const { unitCost } = useCosting();
   const [reportOpen, setReportOpen] = useState(false);
   const c = distributor.currency;
-  const rows = useMemo(() => consignmentPosition(data.consignmentMovements, distributor.id, unitCost), [data.consignmentMovements, distributor.id, unitCost]);
+  const rows = useMemo(() => consignmentPosition(data.consignmentMovements, distributor.id, unitCost, distributor), [data.consignmentMovements, distributor.id, unitCost, distributor]);
   const uninvoiced = data.consignmentMovements.filter((m) => m.distributorId === distributor.id && m.type === "Reported Sale" && !m.invoiceId);
-  const uninvoicedValue = sum(uninvoiced, (m) => m.qty * (m.unitPrice ?? 0));
+  const uninvoicedValue = sum(uninvoiced, (m) => m.amount ?? m.qty * (m.unitPrice ?? 0));
   const movements = data.consignmentMovements.filter((m) => m.distributorId === distributor.id).sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 
   const createInvoice = () => {
@@ -454,6 +454,8 @@ function ConsignmentSection({ distributor, canEdit }: { distributor: Distributor
       <div className="stat-strip">
         <ModuleStat label="Units at distributor" value={int(sum(rows, (r) => r.onHandAtDistributor))} note="Our stock in their warehouse" />
         <ModuleStat label="Stock value at cost" value={cur(sum(rows, (r) => r.stockValueAtCost), "USD")} note="Latest full COGS per unit (USD)" />
+        <ModuleStat label="Remaining stock at agreed price" value={cur(sum(rows, (r) => r.remainingValueAtPriceUsd), "USD")} note={distributor.fxToUsd !== 1 ? `Price list in ${c} × ${distributor.fxToUsd} USD` : "Price list"} />
+        <ModuleStat label="% sold" value={`${Math.round((sum(rows, (r) => r.sold) / Math.max(1, sum(rows, (r) => r.shipped))) * 1000) / 10}%`} note={`${int(sum(rows, (r) => r.sold))} of ${int(sum(rows, (r) => r.shipped))} units`} />
         <ModuleStat label="Sold, not yet invoiced" value={cur(uninvoicedValue, c)} note={`${int(sum(uninvoiced, (m) => m.qty))} units reported`} />
       </div>
 
@@ -473,7 +475,7 @@ function ConsignmentSection({ distributor, canEdit }: { distributor: Distributor
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>SKU</th><th className="num">Shipped to Them</th><th className="num">Sold (Reported)</th><th className="num">Returned to Us</th><th className="num">Adjustments</th><th className="num">On Hand at Distributor</th><th className="num">Sold, Not Invoiced</th><th className="num">To Invoice</th><th className="num">Stock Value at Cost</th></tr>
+              <tr><th>SKU</th><th className="num">Shipped to Them</th><th className="num">Sold (Reported)</th><th className="num">Returned to Us</th><th className="num">Adjustments</th><th className="num">On Hand at Distributor</th><th className="num">% Sold</th><th className="num">Sales Reported</th><th className="num">Sold, Not Invoiced</th><th className="num">To Invoice</th><th className="num">Stock Value at Cost</th><th className="num">Remaining at Price (USD)</th></tr>
             </thead>
             <tbody>
               {rows.map((r) => (
@@ -484,12 +486,15 @@ function ConsignmentSection({ distributor, canEdit }: { distributor: Distributor
                   <td className="num">{r.returned ? int(r.returned) : "—"}</td>
                   <td className="num">{r.adjusted ? int(r.adjusted) : "—"}</td>
                   <td className="num"><strong>{int(r.onHandAtDistributor)}</strong></td>
+                  <td className="num">{(r.pctSold * 100).toFixed(1)}%</td>
+                  <td className="num">{r.salesValue ? cur(r.salesValue, c) : "—"}</td>
                   <td className="num">{r.soldNotInvoicedQty ? int(r.soldNotInvoicedQty) : "—"}</td>
                   <td className="num">{r.soldNotInvoicedValue ? cur(r.soldNotInvoicedValue, c) : "—"}</td>
                   <td className="num">{cur(r.stockValueAtCost, "USD")}</td>
+                  <td className="num">{cur(r.remainingValueAtPriceUsd, "USD")}</td>
                 </tr>
               ))}
-              {rows.length === 0 ? <tr><td colSpan={9} className="empty">No consignment stock recorded.</td></tr> : null}
+              {rows.length === 0 ? <tr><td colSpan={12} className="empty">No consignment stock recorded.</td></tr> : null}
             </tbody>
           </table>
         </div>

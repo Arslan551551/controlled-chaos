@@ -268,7 +268,7 @@ describe("stock count and subscriptions", () => {
 describe("distributor ledgers (Maly's workbook)", () => {
   it("rebuilds the marketing fund and product credit balances", async () => {
     const { distributorPositions } = await import("./distributors.ts");
-    const d = { id: "malys", name: "Maly's", legalName: "Excel Salon Products, Inc d/b/a Malys", contact: "Scott Missad", email: "", city: "Grand Rapids, MI", country: "US", currency: "USD" as const, model: "Wholesale" as const, paymentTermsDays: 30, creditLimit: 50000, marketingFundPct: 4, status: "Active" as const };
+    const d = { id: "malys", name: "Maly's", legalName: "Excel Salon Products, Inc d/b/a Malys", contact: "Scott Missad", email: "", city: "Grand Rapids, MI", country: "US", currency: "USD" as const, model: "Wholesale" as const, paymentTermsDays: 30, creditLimit: 50000, marketingFundPct: 4, status: "Active" as const, fxToUsd: 1, priceList: {} };
     const paid = (id: string, date: string, amount: number) => ({ id, distributorId: "malys", date, dueDate: date, amount, payments: [{ date, amount }], link: null });
     const invoices = [
       paid("30001", "2026-02-24", 30202.75), paid("30144", "2026-05-08", 2153.49), paid("30182", "2026-05-08", 196),
@@ -317,5 +317,18 @@ describe("consignment distributor", () => {
     expect(p!.soldNotInvoicedQty).toBe(800);
     expect(p!.soldNotInvoicedValue).toBe(4800);
     expect(p!.stockValueAtCost).toBe(7250);
+  });
+});
+
+describe("JB consignment report", () => {
+  it("values remaining stock at the EUR price list in USD", async () => {
+    const { consignmentPosition } = await import("./distributors.ts");
+    const { consignmentMovements, distributors } = await import("../sample/people.ts");
+    const jb = distributors.find((d) => d.id === "D-NL")!;
+    const rows = consignmentPosition(consignmentMovements, "D-NL", () => 0, jb);
+    const total = Math.round(rows.reduce((a, r) => a + r.remainingValueAtPriceUsd, 0) * 100) / 100;
+    expect(total).toBe(37744.97);
+    expect(rows.reduce((a, r) => a + r.shipped, 0)).toBe(2688);
+    expect(rows.reduce((a, r) => a + r.sold, 0)).toBe(215);
   });
 });
