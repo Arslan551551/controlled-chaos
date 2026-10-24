@@ -298,6 +298,183 @@ export function weeklyCash(
   return out;
 }
 
+// ---------------------------------------------------------------- expected vs actual cash
+
+/** A real bank movement from the QuickBooks bank feed. */
+export interface BankMovement {
+  id: string;
+  date: string;
+  direction: "in" | "out";
+  category: CashInCategory | CashOutCategory;
+  description: string;
+  amount: number;
+  /** The expected line this movement settles (matched on sync); null = not planned. */
+  matchedTo: string | null;
+}
+
+export type CashLineStatus =
+  | "Received"
+  | "Paid"
+  | "Partly received"
+  | "Received more"
+  | "Paid more"
+  | "Paid less"
+  | "Late"
+  | "Unplanned"
+  | "Expected";
+
+export interface CashCompareLine {
+  id: string;
+  direction: "in" | "out";
+  category: string;
+  description: string;
+  expectedDate: string | null;
+  expected: number;
+  actualDate: string | null;
+  actual: number;
+  /** actual − expected (positive = more money than planned moved). */
+  difference: number;
+  status: CashLineStatus;
+}
+
+export interface CashCompareWeek {
+  weekStart: string;
+  weekEnd: string;
+  kind: "past" | "current" | "future";
+  expectedIn: number;
+  actualIn: number;
+  expectedOut: number;
+  actualOut: number;
+  /** Bank balance at the end of the week: real for past weeks, projected for the rest. */
+  closing: number;
+  closingIsActual: boolean;
+  lines: CashCompareLine[];
+}
+
+const TOLERANCE = 0.01;
+
+function compareStatus(
+  direction: "in" | "out",
+  expected: number,
+  actual: number,
+  hasActual: boolean,
+  expectedDate: string | null,
+  asOf: string,
+): CashLineStatus {
+  if (!expectedDate) return "Unplanned";
+  if (!hasActual) return expectedDate < asOf ? "Late" : "Expected";
+  const diff = actual - expected;
+  if (Math.abs(diff) <= Math.max(1, expected * TOLERANCE))
+    return direction === "in" ? "Received" : "Paid";
+  if (direction === "in") return diff < 0 ? "Partly received" : "Received more";
+  return diff > 0 ? "Paid more" : "Paid less";
+}
+
+/**
+ * Week by week (Mon–Sun): what we expected to come in and go out, what really did
+ * (QuickBooks bank), and the difference. `expected` holds the plan for past weeks
+ * (the forecast as it stood) and for the coming weeks; `actual` holds bank movements.
+ */
+export function cashExpectedVsActual(
+  bankBalanceNow: number,
+  expected: CashForecastLine[],
+  actual: BankMovement[],
+  asOf: string,
+  weeksBack = 4,
+  weeksAhead = 8,
+): CashCompareWeek[] {
+  const thisMonday = weekMonday(asOf);
+  const firstMonday = addDays(thisMonday, -7 * weeksBack);
+  const lines: CashCompareLine[] = [];
+  for (const e of expected) {
+    const matched = actual.filter((a) => a.matchedTo === e.id);
+    const amt = matched.reduce((x, a) => x + a.amount, 0);
+    const date = matched.map((a) => a.date).sort()[0] ?? null;
+    lines.push({
+      id: e.id,
+      direction: e.direction,
+      category: e.category,
+      description: e.description,
+      expectedDate: e.date,
+      expected: e.amount,
+      actualDate: date,
+      actual: amt,
+      difference: matched.length ? amt - e.amount : 0,
+      status: compareStatus(e.direction, e.amount, amt, matched.length > 0, e.date, asOf),
+    });
+  }
+  const known = new Set(expected.map((e) => e.id));
+  for (const a of actual.filter((x) => !x.matchedTo || !known.has(x.matchedTo)))
+    lines.push({
+      id: a.id,
+      direction: a.direction,
+      category: a.category,
+      description: a.description,
+      expectedDate: null,
+      expected: 0,
+      actualDate: a.date,
+      actual: a.amount,
+      difference: a.amount,
+      status: "Unplanned",
+    });
+
+  const net = (m: BankMovement) => (m.direction === "in" ? m.amount : -m.amount);
+  const weeks: CashCompareWeek[] = [];
+  let projected = bankBalanceNow;
+  for (let w = 0; w < weeksBack + weeksAhead; w++) {
+    const weekStart = addDays(firstMonday, w * 7);
+    const weekEnd = addDays(weekStart, 6);
+    const kind = weekStart === thisMonday ? "current" : weekStart < thisMonday ? "past" : "future";
+    const inWeek = lines.filter((l) => {
+      const d = l.expectedDate ?? l.actualDate!;
+      return d >= weekStart && d <= weekEnd;
+    });
+    const sumBy = (dir: "in" | "out", f: (l: CashCompareLine) => number) =>
+      inWeek.filter((l) => l.direction === dir).reduce((x, l) => x + f(l), 0);
+    const week: CashCompareWeek = {
+      weekStart,
+      weekEnd,
+      kind,
+      expectedIn: sumBy("in", (l) => l.expected),
+      actualIn: sumBy("in", (l) => l.actual),
+      expectedOut: sumBy("out", (l) => l.expected),
+      actualOut: sumBy("out", (l) => l.actual),
+      closing: 0,
+      closingIsActual: kind === "past",
+      lines: inWeek.sort((a, b) =>
+        (a.expectedDate ?? a.actualDate!).localeCompare(b.expectedDate ?? b.actualDate!),
+      ),
+    };
+    if (kind === "past") {
+      // Real balance: today's bank balance minus everything that moved after this week.
+      week.closing =
+        bankBalanceNow -
+        actual.filter((m) => m.date > weekEnd && m.date <= asOf).reduce((x, m) => x + net(m), 0);
+    } else {
+      // From today on: plan for what hasn't happened yet (late items are assumed to land now).
+      const carried =
+        kind === "current"
+          ? lines.filter(
+              (l) =>
+                l.status === "Late" &&
+                l.expectedDate! < weekStart &&
+                l.expectedDate! >= firstMonday,
+            )
+          : [];
+      const pending = [...inWeek, ...carried].filter(
+        (l) => l.status === "Expected" || l.status === "Late",
+      );
+      projected += pending.reduce(
+        (x, l) => x + (l.direction === "in" ? l.expected : -l.expected),
+        0,
+      );
+      week.closing = projected;
+    }
+    weeks.push(week);
+  }
+  return weeks;
+}
+
 // ---------------------------------------------------------------- sales vs cash received
 
 export interface ChannelSales {

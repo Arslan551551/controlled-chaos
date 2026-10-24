@@ -86,12 +86,100 @@ export interface SalesRep {
   email: string;
 }
 
+export interface Address {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+}
+
 export interface SalonAccount {
   id: string;
+  /** Running client number (101, 102, …), assigned when the salon is onboarded. */
+  clientCode: number;
   name: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  shippingAddress: Address;
+  billingAddress: Address;
   repId: string;
-  city: string;
+  onboardedOn: string;
   shopifyCustomerId: string | null;
+}
+
+/** Next client code: one more than the highest so far (first salon is 101). */
+export function nextClientCode(accounts: Pick<SalonAccount, "clientCode">[]): number {
+  return accounts.reduce((max, a) => Math.max(max, a.clientCode), 100) + 1;
+}
+
+export function addressLine(a: Address): string {
+  return [a.street, a.city, [a.state, a.zip].filter(Boolean).join(" "), a.country]
+    .filter((x) => x && x.trim())
+    .join(", ");
+}
+
+/** A Shopify order not yet linked to a salon (from the Shopify API). */
+export interface ShopifyOrder {
+  number: string;
+  date: string;
+  /** Shopify customer / company name on the order. */
+  customer: string;
+  email: string;
+  netAmount: number;
+}
+
+export type MatchBy = "email" | "name";
+
+const normName = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+const normEmail = (s: string) => s.trim().toLowerCase();
+
+/** Finds the salon for a Shopify order: same email first, otherwise same salon name. */
+export function matchSalon(
+  order: Pick<ShopifyOrder, "customer" | "email">,
+  accounts: SalonAccount[],
+): { account: SalonAccount; by: MatchBy } | null {
+  const email = normEmail(order.email);
+  if (email) {
+    const byEmail = accounts.find((a) => a.email && normEmail(a.email) === email);
+    if (byEmail) return { account: byEmail, by: "email" };
+  }
+  const name = normName(order.customer);
+  const byName = name ? accounts.find((a) => normName(a.name) === name) : undefined;
+  return byName ? { account: byName, by: "name" } : null;
+}
+
+/**
+ * Tags every Shopify order that matches a salon to that salon's rep (as a salon order
+ * waiting for Finance review). Orders with no match stay in the untagged list.
+ */
+export function autoTagShopifyOrders(
+  orders: ShopifyOrder[],
+  accounts: SalonAccount[],
+  newId: (prefix: string) => string,
+): { tagged: (SalonOrder & { matchedBy: MatchBy })[]; untagged: ShopifyOrder[] } {
+  const tagged: (SalonOrder & { matchedBy: MatchBy })[] = [];
+  const untagged: ShopifyOrder[] = [];
+  for (const o of orders) {
+    const m = matchSalon(o, accounts);
+    if (!m) {
+      untagged.push(o);
+      continue;
+    }
+    tagged.push({
+      id: newId("SO"),
+      accountId: m.account.id,
+      repId: m.account.repId,
+      date: o.date,
+      netAmount: o.netAmount,
+      source: "Shopify",
+      shopifyOrderNumber: o.number,
+      status: "Pending Review",
+      matchedBy: m.by,
+    });
+  }
+  return { tagged, untagged };
 }
 
 export interface CommissionPlan {
@@ -117,6 +205,8 @@ export interface SalonOrder {
   source: "Manual" | "Shopify";
   shopifyOrderNumber: string | null;
   status: "Pending Review" | "Approved" | "Rejected";
+  /** How a Shopify order was matched to the salon automatically. */
+  matchedBy?: MatchBy;
 }
 
 export interface CommissionLine {

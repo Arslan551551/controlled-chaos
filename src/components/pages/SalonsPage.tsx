@@ -23,7 +23,11 @@ import {
 import { isFinance, ROLE_PERSON } from "@/lib/access";
 import { monthKey } from "@/lib/engine/dates";
 import {
+  addressLine,
+  autoTagShopifyOrders,
   calculateCommission,
+  nextClientCode,
+  type Address,
   type CommissionLine,
   type CommissionPlan,
   type SalonAccount,
@@ -35,11 +39,13 @@ import { newId, useStore } from "@/lib/store";
 type TabId = "orders" | "accounts" | "plans" | "tagging";
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: "accounts", label: "Salons" },
   { id: "orders", label: "Orders & Commission" },
-  { id: "accounts", label: "Salon Accounts" },
+  { id: "tagging", label: "Shopify Orders to Tag" },
   { id: "plans", label: "Commission Plans" },
-  { id: "tagging", label: "Shopify Tagging" },
 ];
+
+type OnboardState = { name: string; email: string; tagNumber: string | null };
 
 function basisTone(b: CommissionLine["basis"]) {
   if (b === "First Order") return "purple" as const;
@@ -54,12 +60,11 @@ export function SalonsPage() {
   const finance = isFinance(role);
   const isRep = role === "Salon Sales Rep";
   const myRepId = isRep ? (ROLE_PERSON[role] ?? null) : null;
-  const [tab, setTab] = useState<TabId>("orders");
+  const [tab, setTab] = useState<TabId>("accounts");
   const [orderOpen, setOrderOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState<{ name: string; tagNumber: string | null } | null>(
-    null,
-  );
+  const [accountOpen, setAccountOpen] = useState<OnboardState | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const repName = (id: string) => data.salesReps.find((r) => r.id === id)?.name ?? id;
   const accountName = (id: string) => data.salonAccounts.find((a) => a.id === id)?.name ?? id;
@@ -196,7 +201,16 @@ export function SalonsPage() {
                           <td className="nowrap">{formatDate(l.order.date)}</td>
                           <td>
                             {l.order.source === "Shopify" ? (
-                              <Badge tone="green">Shopify {l.order.shopifyOrderNumber ?? ""}</Badge>
+                              <>
+                                <Badge tone="green">
+                                  Shopify {l.order.shopifyOrderNumber ?? ""}
+                                </Badge>
+                                {l.order.matchedBy ? (
+                                  <div className="small">
+                                    Auto-tagged · matched by {l.order.matchedBy}
+                                  </div>
+                                ) : null}
+                              </>
                             ) : (
                               <Badge tone="grey">Manual</Badge>
                             )}
@@ -301,16 +315,16 @@ export function SalonsPage() {
 
         {tab === "accounts" && (
           <Section
-            title="Salon Accounts"
-            hint={`${accounts.length} account${accounts.length === 1 ? "" : "s"}`}
+            title={myRepId ? "My Salons" : "Salons"}
+            hint={`${accounts.length} salon${accounts.length === 1 ? "" : "s"} · click a row for full details`}
             actions={
               canEdit ? (
                 <button
                   className="btn primary"
                   type="button"
-                  onClick={() => setAccountOpen({ name: "", tagNumber: null })}
+                  onClick={() => setAccountOpen({ name: "", email: "", tagNumber: null })}
                 >
-                  + New Salon Account
+                  + Onboard New Salon
                 </button>
               ) : null
             }
@@ -319,11 +333,12 @@ export function SalonsPage() {
               <table>
                 <thead>
                   <tr>
+                    <th>Code</th>
                     <th>Salon</th>
-                    <th>City</th>
+                    <th>Contact</th>
+                    <th>Ship to</th>
                     <th>Rep</th>
-                    <th>Shopify Customer</th>
-                    <th>First Order</th>
+                    <th>Onboarded</th>
                     <th className="num">Orders</th>
                     <th className="num">Sales (all time)</th>
                     <th className="num">Commission (all time)</th>
@@ -331,58 +346,97 @@ export function SalonsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {accounts.map((a) => {
-                    const al = allLines.filter(
-                      (l) => l.order.accountId === a.id && l.order.status !== "Rejected",
-                    );
-                    const first = [...al].sort((x, y) =>
-                      x.order.date.localeCompare(y.order.date),
-                    )[0];
-                    const plan =
-                      data.commissionPlans.find(
-                        (p) =>
-                          p.repId === a.repId && p.accountId === a.id && p.effectiveTo === null,
-                      ) ??
-                      data.commissionPlans.find(
-                        (p) =>
-                          p.repId === a.repId &&
-                          p.accountId === null &&
-                          (p.effectiveTo === null || p.effectiveTo >= asOf),
+                  {[...accounts]
+                    .sort((x, y) => y.clientCode - x.clientCode)
+                    .map((a) => {
+                      const al = allLines.filter(
+                        (l) => l.order.accountId === a.id && l.order.status !== "Rejected",
                       );
-                    return (
-                      <tr key={a.id}>
-                        <td>
-                          <strong>{a.name}</strong>
-                          <div className="small">{a.id}</div>
-                        </td>
-                        <td>{a.city}</td>
-                        <td>{repName(a.repId)}</td>
-                        <td>
-                          {a.shopifyCustomerId ? (
-                            <Badge tone="green">Linked · {a.shopifyCustomerId}</Badge>
-                          ) : (
-                            <Badge tone="grey">Not linked</Badge>
-                          )}
-                        </td>
-                        <td>{first ? formatDate(first.order.date) : "—"}</td>
-                        <td className="num">{al.length}</td>
-                        <td className="num">{usd(sum(al, (l) => l.order.netAmount))}</td>
-                        <td className="num">{money(sum(al, (l) => l.commission))}</td>
-                        <td>
-                          {plan ? (
-                            <>
-                              {plan.name}
-                              {plan.accountId ? (
-                                <div className="small">Account override</div>
-                              ) : null}
-                            </>
-                          ) : (
-                            <Badge tone="red">No plan</Badge>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                      const plan =
+                        data.commissionPlans.find(
+                          (p) =>
+                            p.repId === a.repId && p.accountId === a.id && p.effectiveTo === null,
+                        ) ??
+                        data.commissionPlans.find(
+                          (p) =>
+                            p.repId === a.repId &&
+                            p.accountId === null &&
+                            (p.effectiveTo === null || p.effectiveTo >= asOf),
+                        );
+                      const open = expanded === a.id;
+                      return [
+                        <tr
+                          key={a.id}
+                          className="clickable"
+                          onClick={() => setExpanded(open ? null : a.id)}
+                        >
+                          <td>
+                            <strong>{a.clientCode}</strong>
+                          </td>
+                          <td>
+                            <strong>{a.name}</strong>
+                          </td>
+                          <td>
+                            {a.contactName}
+                            <div className="small">{a.email}</div>
+                          </td>
+                          <td>
+                            {a.shippingAddress.city}, {a.shippingAddress.state}
+                          </td>
+                          <td>{repName(a.repId)}</td>
+                          <td className="nowrap">{formatDate(a.onboardedOn)}</td>
+                          <td className="num">{al.length}</td>
+                          <td className="num">{usd(sum(al, (l) => l.order.netAmount))}</td>
+                          <td className="num">{money(sum(al, (l) => l.commission))}</td>
+                          <td>
+                            {plan ? (
+                              <>
+                                {plan.name}
+                                {plan.accountId ? (
+                                  <div className="small">Account override</div>
+                                ) : null}
+                              </>
+                            ) : (
+                              <Badge tone="red">No plan</Badge>
+                            )}
+                          </td>
+                        </tr>,
+                        open ? (
+                          <tr key={`${a.id}-detail`}>
+                            <td colSpan={10}>
+                              <div className="form-grid salon-detail">
+                                <div>
+                                  <span className="small">Phone</span>
+                                  <div>{a.phone || "—"}</div>
+                                </div>
+                                <div>
+                                  <span className="small">Email</span>
+                                  <div>{a.email}</div>
+                                </div>
+                                <div>
+                                  <span className="small">Shipping address</span>
+                                  <div>{addressLine(a.shippingAddress)}</div>
+                                </div>
+                                <div>
+                                  <span className="small">Billing address</span>
+                                  <div>{addressLine(a.billingAddress)}</div>
+                                </div>
+                                <div>
+                                  <span className="small">Shopify customer</span>
+                                  <div>
+                                    {a.shopifyCustomerId ? (
+                                      <Badge tone="green">Linked · {a.shopifyCustomerId}</Badge>
+                                    ) : (
+                                      "Matched by email or salon name"
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null,
+                      ];
+                    })}
                 </tbody>
               </table>
             </div>
@@ -469,7 +523,7 @@ export function SalonsPage() {
         {tab === "tagging" && (
           <TaggingTab
             canTag={canEdit}
-            onNewAccount={(name, tagNumber) => setAccountOpen({ name, tagNumber })}
+            onNewAccount={(name, email, tagNumber) => setAccountOpen({ name, email, tagNumber })}
             myRepId={myRepId}
           />
         )}
@@ -497,7 +551,7 @@ function TaggingTab({
   myRepId,
 }: {
   canTag: boolean;
-  onNewAccount: (name: string, tagNumber: string) => void;
+  onNewAccount: (name: string, email: string, tagNumber: string) => void;
   myRepId: string | null;
 }) {
   const { data, update, flash } = useStore();
@@ -505,11 +559,14 @@ function TaggingTab({
   const accounts = myRepId
     ? data.salonAccounts.filter((a) => a.repId === myRepId)
     : data.salonAccounts;
+  const auto = data.salonOrders
+    .filter((o) => o.matchedBy && (!myRepId || o.repId === myRepId))
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const salon = (id: string) => data.salonAccounts.find((a) => a.id === id);
 
   const tag = (number: string) => {
     const o = data.untaggedShopifyOrders.find((x) => x.number === number);
-    const accountId = choice[number] ?? o?.suggestedAccountId ?? "";
-    const account = data.salonAccounts.find((a) => a.id === accountId);
+    const account = data.salonAccounts.find((a) => a.id === choice[number]);
     if (!o || !account) return;
     const order: SalonOrder = {
       id: newId("SO"),
@@ -527,34 +584,31 @@ function TaggingTab({
   };
 
   return (
-    <Section
-      title="Untagged Shopify Wholesale Orders"
-      hint={<Source>Shopify API · wholesale orders</Source>}
-    >
+    <div className="stack">
       <div className="notice">
-        Wholesale orders placed on Shopify arrive here. Tag each one to the salon account so it
-        counts toward that rep's commission. Tagged orders go to Finance for approval.
+        Every Shopify wholesale order is checked against the salon list. If the order's{" "}
+        <strong>email</strong> or <strong>salon name</strong> matches a salon, it is tagged to that
+        salon's rep automatically and goes to Finance for approval. Only orders with no match are
+        left below. Onboard the salon and its orders are picked up straight away.
       </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Shopify Order</th>
-              <th>Date</th>
-              <th>Customer (Shopify)</th>
-              <th className="num">Net Amount</th>
-              <th>Tag to Salon Account</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.untaggedShopifyOrders.map((o) => {
-              const value =
-                choice[o.number] ??
-                (o.suggestedAccountId && accounts.some((a) => a.id === o.suggestedAccountId)
-                  ? o.suggestedAccountId
-                  : "");
-              return (
+      <Section
+        title="Shopify orders with no matching salon"
+        hint={<Source>Shopify API · wholesale orders</Source>}
+      >
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Shopify Order</th>
+                <th>Date</th>
+                <th>Customer (Shopify)</th>
+                <th className="num">Net Amount</th>
+                <th>Tag to Salon</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.untaggedShopifyOrders.map((o) => (
                 <tr key={o.number}>
                   <td>
                     <strong>{o.number}</strong>
@@ -562,24 +616,20 @@ function TaggingTab({
                   <td>{formatDate(o.date)}</td>
                   <td>
                     {o.customer}
-                    {o.suggestedAccountId ? (
-                      <div className="small">Matched by Shopify customer</div>
-                    ) : (
-                      <div className="small">New customer – no salon account</div>
-                    )}
+                    <div className="small">{o.email}</div>
                   </td>
                   <td className="num">{usd(o.netAmount)}</td>
                   <td>
                     <select
                       className="control"
-                      value={value}
+                      value={choice[o.number] ?? ""}
                       disabled={!canTag}
                       onChange={(e) => setChoice((c) => ({ ...c, [o.number]: e.target.value }))}
                     >
                       <option value="">Select salon…</option>
                       {accounts.map((a) => (
                         <option key={a.id} value={a.id}>
-                          {a.name}
+                          {a.clientCode} · {a.name}
                         </option>
                       ))}
                     </select>
@@ -590,39 +640,84 @@ function TaggingTab({
                         <button
                           className="mini-action"
                           type="button"
-                          disabled={!value}
+                          disabled={!choice[o.number]}
                           onClick={() => tag(o.number)}
                         >
                           Tag
                         </button>
-                        {!o.suggestedAccountId ? (
-                          <button
-                            className="mini-action"
-                            type="button"
-                            onClick={() => onNewAccount(o.customer, o.number)}
-                          >
-                            New account
-                          </button>
-                        ) : null}
+                        <button
+                          className="mini-action"
+                          type="button"
+                          onClick={() => onNewAccount(o.customer, o.email, o.number)}
+                        >
+                          Onboard as new salon
+                        </button>
                       </div>
                     ) : (
                       <span className="small">View only</span>
                     )}
                   </td>
                 </tr>
-              );
-            })}
-            {data.untaggedShopifyOrders.length === 0 ? (
+              ))}
+              {data.untaggedShopifyOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="empty">
+                    Every Shopify wholesale order is matched to a salon.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+      <Section title="Tagged automatically" hint={`${auto.length} orders`}>
+        <div className="table-wrap">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={6} className="empty">
-                  All Shopify wholesale orders are tagged.
-                </td>
+                <th>Shopify Order</th>
+                <th>Date</th>
+                <th>Salon</th>
+                <th>Rep</th>
+                <th>Matched by</th>
+                <th className="num">Net Amount</th>
+                <th>Status</th>
               </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-    </Section>
+            </thead>
+            <tbody>
+              {auto.map((o) => (
+                <tr key={o.id}>
+                  <td>
+                    <strong>{o.shopifyOrderNumber}</strong>
+                  </td>
+                  <td>{formatDate(o.date)}</td>
+                  <td>
+                    {salon(o.accountId)?.clientCode} · {salon(o.accountId)?.name}
+                  </td>
+                  <td>{data.salesReps.find((r) => r.id === o.repId)?.name ?? o.repId}</td>
+                  <td>
+                    <Badge tone={o.matchedBy === "email" ? "green" : "amber"}>
+                      {o.matchedBy === "email" ? "Email" : "Salon name"}
+                    </Badge>
+                  </td>
+                  <td className="num">{usd(o.netAmount)}</td>
+                  <td>
+                    <StatusBadge status={o.status} />
+                  </td>
+                </tr>
+              ))}
+              {auto.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="empty">
+                    No orders tagged automatically yet.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+    </div>
   );
 }
 
@@ -677,7 +772,7 @@ function AddOrderModal({
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} · {a.city}
+                  {a.clientCode} · {a.name} · {a.shippingAddress.city}
                 </option>
               ))}
             </select>
@@ -855,79 +950,172 @@ function PlanModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
+const EMPTY_ADDRESS: Address = {
+  street: "",
+  city: "",
+  state: "",
+  zip: "",
+  country: "United States",
+};
+
+function AddressFields({
+  label,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  value: Address;
+  onChange: (a: Address) => void;
+  required?: boolean;
+}) {
+  const set = (k: keyof Address) => (e: { target: { value: string } }) =>
+    onChange({ ...value, [k]: e.target.value });
+  return (
+    <>
+      <Field label={`${label} · street`} span2>
+        <input value={value.street} onChange={set("street")} required={required} />
+      </Field>
+      <Field label="City">
+        <input value={value.city} onChange={set("city")} required={required} />
+      </Field>
+      <Field label="State">
+        <input value={value.state} onChange={set("state")} required={required} />
+      </Field>
+      <Field label="ZIP">
+        <input value={value.zip} onChange={set("zip")} required={required} />
+      </Field>
+      <Field label="Country">
+        <input value={value.country} onChange={set("country")} required={required} />
+      </Field>
+    </>
+  );
+}
+
 function AccountModal({
   state,
   onClose,
   defaultRepId,
 }: {
-  state: { name: string; tagNumber: string | null } | null;
+  state: OnboardState | null;
   onClose: () => void;
   defaultRepId: string | null;
 }) {
-  const { data, update, flash } = useStore();
+  const { data, update, flash, asOf } = useStore();
   const [name, setName] = useState("");
-  const [city, setCity] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [shipping, setShipping] = useState<Address>(EMPTY_ADDRESS);
+  const [billing, setBilling] = useState<Address>(EMPTY_ADDRESS);
+  const [sameBilling, setSameBilling] = useState(true);
   const [repId, setRepId] = useState(defaultRepId ?? data.salesReps[0]?.id ?? "");
   const [seenFor, setSeenFor] = useState<typeof state>(null);
   if (state !== seenFor) {
     setSeenFor(state);
-    if (state) setName(state.name);
+    if (state) {
+      setName(state.name);
+      setEmail(state.email);
+    }
   }
+  const code = nextClientCode(data.salonAccounts);
+
+  const reset = () => {
+    setContactName("");
+    setPhone("");
+    setShipping(EMPTY_ADDRESS);
+    setBilling(EMPTY_ADDRESS);
+    setSameBilling(true);
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    if (data.salonAccounts.some((a) => a.name.toLowerCase() === name.trim().toLowerCase())) {
-      flash("A salon account with this name already exists");
+    const clash = data.salonAccounts.find(
+      (a) =>
+        a.name.toLowerCase() === name.trim().toLowerCase() ||
+        a.email.toLowerCase() === email.trim().toLowerCase(),
+    );
+    if (clash) {
+      flash(`Already onboarded as ${clash.clientCode} · ${clash.name}`);
       return;
     }
     const account: SalonAccount = {
       id: newId("SAL"),
+      clientCode: code,
       name: name.trim(),
+      contactName: contactName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      shippingAddress: shipping,
+      billingAddress: sameBilling ? shipping : billing,
       repId: defaultRepId ?? repId,
-      city: city.trim(),
-      shopifyCustomerId: state?.tagNumber ? "From Shopify" : null,
+      onboardedOn: asOf,
+      shopifyCustomerId: null,
     };
     update("salonAccounts", (prev) => [...prev, account]);
-    const tagged = state?.tagNumber
-      ? data.untaggedShopifyOrders.find((o) => o.number === state.tagNumber)
-      : undefined;
-    if (tagged) {
-      update("salonOrders", (prev) => [
-        ...prev,
-        {
-          id: newId("SO"),
-          accountId: account.id,
-          repId: account.repId,
-          date: tagged.date,
-          netAmount: tagged.netAmount,
-          source: "Shopify",
-          shopifyOrderNumber: tagged.number,
-          status: "Pending Review",
-        },
-      ]);
-      update("untaggedShopifyOrders", (prev) => prev.filter((o) => o.number !== tagged.number));
+    // Pick up any waiting Shopify orders that match the new salon.
+    const res = autoTagShopifyOrders(data.untaggedShopifyOrders, [account], newId);
+    if (res.tagged.length) {
+      update("salonOrders", (prev) => [...prev, ...res.tagged]);
+      update("untaggedShopifyOrders", () => res.untagged);
     }
-    flash(`Salon account ${account.name} created${tagged ? ` and ${tagged.number} tagged` : ""}`);
-    setCity("");
+    flash(
+      `Salon ${account.clientCode} · ${account.name} onboarded` +
+        (res.tagged.length
+          ? ` · ${res.tagged.length} Shopify order${res.tagged.length === 1 ? "" : "s"} tagged`
+          : ""),
+    );
+    reset();
     onClose();
   };
 
   return (
-    <Modal open={state !== null} title="New Salon Account" onClose={onClose} width={560}>
+    <Modal open={state !== null} title="Onboard New Salon" onClose={onClose} width={720}>
       <form onSubmit={submit}>
+        <div className="notice" style={{ marginBottom: 12 }}>
+          Client code <strong>{code}</strong> will be assigned automatically (next after {code - 1}
+          ).
+        </div>
         <div className="form-grid">
-          <Field label="Salon Name" span2>
+          <Field label="Salon name" span2>
             <input value={name} onChange={(e) => setName(e.target.value)} required />
           </Field>
-          <Field label="City / State">
+          <Field label="Client (contact) name">
+            <input value={contactName} onChange={(e) => setContactName(e.target.value)} required />
+          </Field>
+          <Field label="Phone">
             <input
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder="Atlanta, GA"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="(404) 555-0100"
+              required
             />
           </Field>
-          <Field label="Sales Rep">
+          <Field label="Email (used to match Shopify orders)" span2>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </Field>
+          <AddressFields
+            label="Shipping address"
+            value={shipping}
+            onChange={setShipping}
+            required
+          />
+          <Field label="Billing address" span2>
+            <label className="row" style={{ gap: 8, fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                checked={sameBilling}
+                onChange={(e) => setSameBilling(e.target.checked)}
+              />
+              Same as shipping address
+            </label>
+          </Field>
+          {!sameBilling ? (
+            <AddressFields label="Billing address" value={billing} onChange={setBilling} required />
+          ) : null}
+          <Field label="Sales rep">
             <select
               value={defaultRepId ?? repId}
               disabled={defaultRepId !== null}
@@ -941,13 +1129,12 @@ function AccountModal({
             </select>
           </Field>
         </div>
-        {state?.tagNumber ? (
-          <div className="notice" style={{ marginTop: 12, marginBottom: 0 }}>
-            Shopify order {state.tagNumber} will be tagged to this new account and sent for Finance
-            review.
-          </div>
-        ) : null}
-        <ModalActions onCancel={onClose} submitLabel="Create Account" />
+        <div className="notice" style={{ marginTop: 12, marginBottom: 0 }}>
+          From now on, any Shopify order with this email or salon name is tagged to{" "}
+          {data.salesReps.find((r) => r.id === (defaultRepId ?? repId))?.name ?? "the rep"} for
+          commission automatically.
+        </div>
+        <ModalActions onCancel={onClose} submitLabel="Onboard Salon" />
       </form>
     </Modal>
   );
