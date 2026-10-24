@@ -146,7 +146,8 @@ export function analyzeCampaign(c: Campaign, unitCost: (sku: string) => number):
   const incrementalGrossProfit = incrementalSales - incrementalUnits * cost;
   const incrementalProfit = incrementalGrossProfit - cashCost;
   const roi = div(incrementalProfit, totalCost);
-  const incrementalOrders = c.results.units > 0 ? (c.results.orders * incrementalUnits) / c.results.units : 0;
+  const incrementalOrders =
+    c.results.units > 0 ? (c.results.orders * incrementalUnits) / c.results.units : 0;
   let verdict: Verdict;
   if (c.status === "Planned") verdict = "Not started";
   else if (incrementalProfit > totalCost * BREAK_EVEN_BAND) verdict = "Profitable";
@@ -171,14 +172,17 @@ export function analyzeCampaign(c: Campaign, unitCost: (sku: string) => number):
     mer: div(c.results.netSales, totalCost),
     roas: div(c.results.netSales, c.costs.adSpend),
     verdict,
-    postCampaignDip: c.results.postDailyUnits !== undefined && c.results.postDailyUnits < c.baseline.dailyUnits * 0.9,
+    postCampaignDip:
+      c.results.postDailyUnits !== undefined &&
+      c.results.postDailyUnits < c.baseline.dailyUnits * 0.9,
   };
 }
 
 // ---------------------------------------------------------------- conversion
 
 /** Shopify first-click sources as mapped in the ROAS report; marketplaces use one row per channel. */
-export type TrafficSourceName = "google" | "facebook/instagram" | "email" | "direct" | "affiliate" | "others" | "marketplace";
+export type TrafficSourceName =
+  "google" | "facebook/instagram" | "email" | "direct" | "affiliate" | "others" | "marketplace";
 
 export interface TrafficSource {
   channel: SalesChannel;
@@ -267,7 +271,8 @@ export function merRow(i: MerInput): MerRow {
     ...i,
     totalMarketingCost,
     mer: div(i.totalSales, totalMarketingCost),
-    roas: i.paidAdSales === null || i.paidAdSpend === null ? null : div(i.paidAdSales, i.paidAdSpend),
+    roas:
+      i.paidAdSales === null || i.paidAdSpend === null ? null : div(i.paidAdSales, i.paidAdSpend),
   };
 }
 
@@ -278,5 +283,12 @@ export function blended(rows: MerInput[]) {
   const paid = rows.filter((r) => r.paidAdSales !== null && r.paidAdSpend !== null);
   const paidSales = paid.reduce((a, r) => a + (r.paidAdSales ?? 0), 0);
   const paidSpend = paid.reduce((a, r) => a + (r.paidAdSpend ?? 0), 0);
-  return { totalSales, totalCost, paidSales, paidSpend, mer: div(totalSales, totalCost), roas: div(paidSales, paidSpend) };
+  return {
+    totalSales,
+    totalCost,
+    paidSales,
+    paidSpend,
+    mer: div(totalSales, totalCost),
+    roas: div(paidSales, paidSpend),
+  };
 }

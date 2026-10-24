@@ -5,7 +5,13 @@
 
 import { maskedAccount, type PayrollBatch, type PayrollLine } from "../engine/payroll.ts";
 
-const line = (empCode: string, department: string, grossPkr: number, pfReleasePkr: number, bankName: string): PayrollLine => ({
+const line = (
+  empCode: string,
+  department: string,
+  grossPkr: number,
+  pfReleasePkr: number,
+  bankName: string,
+): PayrollLine => ({
   empCode,
   name: `Employee ${empCode}`,
   department,
@@ -13,7 +19,12 @@ const line = (empCode: string, department: string, grossPkr: number, pfReleasePk
   pfReleasePkr,
   deductionsPkr: 0,
   netPkr: Math.round((grossPkr + pfReleasePkr) * 100) / 100,
-  bank: { beneficiary: `Employee ${empCode}`, bankName, bankCode: "—", accountMasked: maskedAccount(empCode) },
+  bank: {
+    beneficiary: `Employee ${empCode}`,
+    bankName,
+    bankCode: "—",
+    accountMasked: maskedAccount(empCode),
+  },
 });
 
 export const payrollBatches: PayrollBatch[] = [

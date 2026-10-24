@@ -98,9 +98,24 @@ const PNL_MEASURES: Measure[] = [
   { key: "np", label: "NP", fmt: "usd" },
   { key: "npPct", label: "NP %", fmt: "pct", derive: (g) => div(g("np"), g("netRevenue")) },
   { key: "npPerUnit", label: "NP / unit", fmt: "usd", derive: (g) => div(g("np"), g("units")) },
-  { key: "shipPerUnit", label: "Shipping / unit", fmt: "usd", derive: (g) => div(g("shippingCost"), g("units")) },
-  { key: "feePct", label: "Platform fees %", fmt: "pct", derive: (g) => div(g("platformFees"), g("netRevenue")) },
-  { key: "roas", label: "ROAS (net rev ÷ ads)", fmt: "ratio", derive: (g) => div(g("netRevenue"), g("adSpend")) },
+  {
+    key: "shipPerUnit",
+    label: "Shipping / unit",
+    fmt: "usd",
+    derive: (g) => div(g("shippingCost"), g("units")),
+  },
+  {
+    key: "feePct",
+    label: "Platform fees %",
+    fmt: "pct",
+    derive: (g) => div(g("platformFees"), g("netRevenue")),
+  },
+  {
+    key: "roas",
+    label: "ROAS (net rev ÷ ads)",
+    fmt: "ratio",
+    derive: (g) => div(g("netRevenue"), g("adSpend")),
+  },
 ];
 
 const NEW_SKU = "New (first PO in last 6 months)";
@@ -120,7 +135,12 @@ function useDatasets(): Dataset[] {
     const pnlRows: Row[] = [];
     const months = [...new Set(data.skuChannelMonth.map((r) => r.month))].sort();
     for (const m of months) {
-      const overhead = new Map(profitability(data.channelSales, data.channelCosts, data.expenses, [m]).rows.map((r) => [r.channel, r.allocatedExpenses]));
+      const overhead = new Map(
+        profitability(data.channelSales, data.channelCosts, data.expenses, [m]).rows.map((r) => [
+          r.channel,
+          r.allocatedExpenses,
+        ]),
+      );
       const inMonth = data.skuChannelMonth.filter((r) => r.month === m);
       const layered = inMonth.map((r) => ({
         r,
@@ -140,11 +160,18 @@ function useDatasets(): Dataset[] {
         }),
       }));
       const channelNet = new Map<string, number>();
-      for (const x of layered) channelNet.set(x.r.channel, (channelNet.get(x.r.channel) ?? 0) + Math.max(0, x.l.netRevenue));
+      for (const x of layered)
+        channelNet.set(
+          x.r.channel,
+          (channelNet.get(x.r.channel) ?? 0) + Math.max(0, x.l.netRevenue),
+        );
       for (const { r, l } of layered) {
         const pool = overhead.get(r.channel) ?? 0;
         const base = channelNet.get(r.channel) ?? 0;
-        const full = finishLayers({ ...l, overhead: base > 0 ? (pool * Math.max(0, l.netRevenue)) / base : 0 });
+        const full = finishLayers({
+          ...l,
+          overhead: base > 0 ? (pool * Math.max(0, l.netRevenue)) / base : 0,
+        });
         pnlRows.push({
           sku: r.sku,
           product: desc(r.sku),
@@ -174,12 +201,32 @@ function useDatasets(): Dataset[] {
 
     // --- Sales vs cash
     const scRows: Row[] = data.channelSales.map((s) => {
-      const received = data.cashReceipts.filter((r) => r.channel === s.channel && r.settlesMonth === s.month).reduce((a, r) => a + r.amount, 0);
-      return { channel: s.channel, month: s.month, grossSales: s.grossSales, refunds: s.refunds, platformFees: s.platformFees, expectedNet: s.expectedNet, received, outstanding: s.expectedNet - received };
+      const received = data.cashReceipts
+        .filter((r) => r.channel === s.channel && r.settlesMonth === s.month)
+        .reduce((a, r) => a + r.amount, 0);
+      return {
+        channel: s.channel,
+        month: s.month,
+        grossSales: s.grossSales,
+        refunds: s.refunds,
+        platformFees: s.platformFees,
+        expectedNet: s.expectedNet,
+        received,
+        outstanding: s.expectedNet - received,
+      };
     });
 
     // --- Marketing by platform
-    const mktRows: Row[] = data.adMetrics.map((a) => ({ platform: a.platform, channel: a.channel, month: a.month, spend: a.spend, impressions: a.impressions, clicks: a.clicks, orders: a.orders, adSales: a.adSales }));
+    const mktRows: Row[] = data.adMetrics.map((a) => ({
+      platform: a.platform,
+      channel: a.channel,
+      month: a.month,
+      spend: a.spend,
+      impressions: a.impressions,
+      clicks: a.clicks,
+      orders: a.orders,
+      adSales: a.adSales,
+    }));
 
     // --- Campaigns
     const campRows: Row[] = data.campaigns.map((c) => {
@@ -224,7 +271,8 @@ function useDatasets(): Dataset[] {
       const prev = firstPo.get(p.sku);
       if (!prev || p.openDate < prev) firstPo.set(p.sku, p.openDate);
     }
-    const ageOf = (sku: string) => ((firstPo.get(sku) ?? "0000") >= sixMonthsAgo ? NEW_SKU : EXISTING_SKU);
+    const ageOf = (sku: string) =>
+      (firstPo.get(sku) ?? "0000") >= sixMonthsAgo ? NEW_SKU : EXISTING_SKU;
     const purchaseRows: Row[] = [
       ...data.purchaseOrders
         .filter((p) => p.status !== "Cancelled")
@@ -290,7 +338,8 @@ function useDatasets(): Dataset[] {
         nonPo: o("Non-PO Payment"),
         payroll: o("Payroll"),
         subscriptions: o("Subscription"),
-        otherOut: w.paymentsOut - o("PO Payment") - o("Non-PO Payment") - o("Payroll") - o("Subscription"),
+        otherOut:
+          w.paymentsOut - o("PO Payment") - o("Non-PO Payment") - o("Payroll") - o("Subscription"),
         paymentsOut: w.paymentsOut,
         receiptsIn: w.receiptsIn,
         closing: w.closing,
@@ -299,14 +348,39 @@ function useDatasets(): Dataset[] {
 
     // --- AR (customers incl. distributors), USD
     const arRows: Row[] = [
-      ...data.arInvoices.map((i) => ({ customer: i.customerName, type: i.customerType, owner: i.ownerName, bucket: bucketOf(i, asOf), open: openUsd(i), overdue: daysOverdue(i, asOf) > 0 ? openUsd(i) : 0, invoices: 1 })),
+      ...data.arInvoices.map((i) => ({
+        customer: i.customerName,
+        type: i.customerType,
+        owner: i.ownerName,
+        bucket: bucketOf(i, asOf),
+        open: openUsd(i),
+        overdue: daysOverdue(i, asOf) > 0 ? openUsd(i) : 0,
+        invoices: 1,
+      })),
       ...data.distributorInvoices.map((inv) => {
         const d = data.distributors.find((x) => x.id === inv.distributorId);
         const fx = d?.fxToUsd ?? 1;
         const open = Math.max(0, inv.amount - invoicePaid(inv)) * fx;
         const late = Math.round((Date.parse(asOf) - Date.parse(inv.dueDate)) / 86_400_000);
-        const bucket = late <= 0 ? "Current" : late <= 30 ? "1–30" : late <= 60 ? "31–60" : late <= 90 ? "61–90" : "90+";
-        return { customer: d?.name ?? inv.distributorId, type: "Distributor", owner: "Director Finance", bucket, open, overdue: late > 0 ? open : 0, invoices: 1 };
+        const bucket =
+          late <= 0
+            ? "Current"
+            : late <= 30
+              ? "1–30"
+              : late <= 60
+                ? "31–60"
+                : late <= 90
+                  ? "61–90"
+                  : "90+";
+        return {
+          customer: d?.name ?? inv.distributorId,
+          type: "Distributor",
+          owner: "Director Finance",
+          bucket,
+          open,
+          overdue: late > 0 ? open : 0,
+          invoices: 1,
+        };
       }),
     ].filter((r) => (r.open as number) > 0.005);
 
@@ -333,13 +407,22 @@ function useDatasets(): Dataset[] {
         label: "Product × channel P&L (GP / CM / NP)",
         description: "Every SKU on every platform with all profit layers",
         rows: pnlRows,
-        dimensions: [{ key: "sku", label: "SKU" }, { key: "product", label: "Product" }, { key: "family", label: "Product family" }, channelDim, monthDim],
+        dimensions: [
+          { key: "sku", label: "SKU" },
+          { key: "product", label: "Product" },
+          { key: "family", label: "Product family" },
+          channelDim,
+          monthDim,
+        ],
         measures: PNL_MEASURES,
         periodKey: "month",
         filterKeys: ["channel", "family", "sku"],
         note: (
           <>
-            NP = CM2 − the channel's split shared expenses, allocated to SKUs by net revenue. <Assume title="Ad spend is attributed to SKUs by revenue share; overhead by net revenue within each channel and month.">ad & overhead allocation</Assume>
+            NP = CM2 − the channel's split shared expenses, allocated to SKUs by net revenue.{" "}
+            <Assume title="Ad spend is attributed to SKUs by revenue share; overhead by net revenue within each channel and month.">
+              ad & overhead allocation
+            </Assume>
           </>
         ),
       },
@@ -356,7 +439,12 @@ function useDatasets(): Dataset[] {
           { key: "expectedNet", label: "Expected net", fmt: "usd" },
           { key: "received", label: "Cash received", fmt: "usd" },
           { key: "outstanding", label: "Outstanding", fmt: "usd" },
-          { key: "collectedPct", label: "% collected", fmt: "pct", derive: (g) => div(g("received"), g("expectedNet")) },
+          {
+            key: "collectedPct",
+            label: "% collected",
+            fmt: "pct",
+            derive: (g) => div(g("received"), g("expectedNet")),
+          },
         ],
         periodKey: "month",
         filterKeys: ["channel"],
@@ -370,15 +458,30 @@ function useDatasets(): Dataset[] {
         measures: [
           { key: "spend", label: "Ad spend", fmt: "usd" },
           { key: "adSales", label: "Ad sales", fmt: "usd" },
-          { key: "roas", label: "ROAS", fmt: "ratio", derive: (g) => div(g("adSales"), g("spend")) },
+          {
+            key: "roas",
+            label: "ROAS",
+            fmt: "ratio",
+            derive: (g) => div(g("adSales"), g("spend")),
+          },
           { key: "acos", label: "ACoS", fmt: "pct", derive: (g) => div(g("spend"), g("adSales")) },
           { key: "impressions", label: "Impressions", fmt: "int" },
           { key: "clicks", label: "Clicks", fmt: "int" },
-          { key: "ctr", label: "CTR", fmt: "pct", derive: (g) => div(g("clicks"), g("impressions")) },
+          {
+            key: "ctr",
+            label: "CTR",
+            fmt: "pct",
+            derive: (g) => div(g("clicks"), g("impressions")),
+          },
           { key: "cpc", label: "CPC", fmt: "usd", derive: (g) => div(g("spend"), g("clicks")) },
           { key: "orders", label: "Orders", fmt: "int" },
           { key: "cvr", label: "CVR", fmt: "pct", derive: (g) => div(g("orders"), g("clicks")) },
-          { key: "cpa", label: "Cost per order", fmt: "usd", derive: (g) => div(g("spend"), g("orders")) },
+          {
+            key: "cpa",
+            label: "Cost per order",
+            fmt: "usd",
+            derive: (g) => div(g("spend"), g("orders")),
+          },
         ],
         periodKey: "month",
         filterKeys: ["platform", "channel"],
@@ -388,7 +491,15 @@ function useDatasets(): Dataset[] {
         label: "Campaigns",
         description: "Cost (incl. discounts) vs incremental sales and profit",
         rows: campRows,
-        dimensions: [{ key: "campaign", label: "Campaign" }, channelDim, { key: "type", label: "Type" }, { key: "verdict", label: "Verdict" }, { key: "status", label: "Status" }, { key: "owner", label: "Owner" }, monthDim],
+        dimensions: [
+          { key: "campaign", label: "Campaign" },
+          channelDim,
+          { key: "type", label: "Type" },
+          { key: "verdict", label: "Verdict" },
+          { key: "status", label: "Status" },
+          { key: "owner", label: "Owner" },
+          monthDim,
+        ],
         measures: [
           { key: "totalCost", label: "Total cost", fmt: "usd" },
           { key: "discountCost", label: "Discounts given", fmt: "usd" },
@@ -396,11 +507,26 @@ function useDatasets(): Dataset[] {
           { key: "netSales", label: "Net sales", fmt: "usd" },
           { key: "incrementalSales", label: "Incremental sales", fmt: "usd" },
           { key: "incrementalProfit", label: "Incremental profit", fmt: "usd" },
-          { key: "roi", label: "ROI", fmt: "pct", derive: (g) => div(g("incrementalProfit"), g("totalCost")) },
-          { key: "mer", label: "MER", fmt: "ratio", derive: (g) => div(g("netSales"), g("totalCost")) },
+          {
+            key: "roi",
+            label: "ROI",
+            fmt: "pct",
+            derive: (g) => div(g("incrementalProfit"), g("totalCost")),
+          },
+          {
+            key: "mer",
+            label: "MER",
+            fmt: "ratio",
+            derive: (g) => div(g("netSales"), g("totalCost")),
+          },
           { key: "orders", label: "Orders", fmt: "int" },
           { key: "newCustomers", label: "New customers", fmt: "int" },
-          { key: "cac", label: "Cost per new customer", fmt: "usd", derive: (g) => div(g("totalCost"), g("newCustomers")) },
+          {
+            key: "cac",
+            label: "Cost per new customer",
+            fmt: "usd",
+            derive: (g) => div(g("totalCost"), g("newCustomers")),
+          },
         ],
         periodKey: "month",
         filterKeys: ["channel", "type", "verdict", "status"],
@@ -415,16 +541,41 @@ function useDatasets(): Dataset[] {
           { key: "sessions", label: "Sessions", fmt: "int" },
           { key: "addToCart", label: "Add to cart", fmt: "int" },
           { key: "orders", label: "Orders", fmt: "int" },
-          { key: "cvr", label: "Conversion rate", fmt: "pct", derive: (g) => div(g("orders"), g("sessions")) },
-          { key: "atcRate", label: "Add-to-cart rate", fmt: "pct", derive: (g) => div(g("addToCart"), g("sessions")) },
+          {
+            key: "cvr",
+            label: "Conversion rate",
+            fmt: "pct",
+            derive: (g) => div(g("orders"), g("sessions")),
+          },
+          {
+            key: "atcRate",
+            label: "Add-to-cart rate",
+            fmt: "pct",
+            derive: (g) => div(g("addToCart"), g("sessions")),
+          },
           { key: "revenue", label: "Revenue", fmt: "usd" },
           { key: "aov", label: "AOV", fmt: "usd", derive: (g) => div(g("revenue"), g("orders")) },
           { key: "newCustomers", label: "New customers", fmt: "int" },
           { key: "returningCustomers", label: "Returning customers", fmt: "int" },
-          { key: "newShare", label: "New customer share", fmt: "pct", derive: (g) => div(g("newCustomers"), g("newCustomers") + g("returningCustomers")) },
+          {
+            key: "newShare",
+            label: "New customer share",
+            fmt: "pct",
+            derive: (g) => div(g("newCustomers"), g("newCustomers") + g("returningCustomers")),
+          },
           { key: "adSpend", label: "Ad spend", fmt: "usd" },
-          { key: "cac", label: "CAC", fmt: "usd", derive: (g) => div(g("adSpend"), g("newCustomers")) },
-          { key: "roas", label: "ROAS", fmt: "ratio", derive: (g) => div(g("revenue"), g("adSpend")) },
+          {
+            key: "cac",
+            label: "CAC",
+            fmt: "usd",
+            derive: (g) => div(g("adSpend"), g("newCustomers")),
+          },
+          {
+            key: "roas",
+            label: "ROAS",
+            fmt: "ratio",
+            derive: (g) => div(g("revenue"), g("adSpend")),
+          },
         ],
         periodKey: "month",
         filterKeys: ["channel", "source"],
@@ -434,20 +585,36 @@ function useDatasets(): Dataset[] {
         label: "Spend on products (POs + marketing)",
         description: "PO commitments, paid installments and product marketing by SKU",
         rows: purchaseRows,
-        dimensions: [{ key: "sku", label: "SKU" }, { key: "product", label: "Product" }, { key: "family", label: "Product family" }, { key: "vendor", label: "Vendor / channel" }, { key: "spendType", label: "Spend type" }, { key: "skuAge", label: "New vs existing SKU" }, monthDim],
+        dimensions: [
+          { key: "sku", label: "SKU" },
+          { key: "product", label: "Product" },
+          { key: "family", label: "Product family" },
+          { key: "vendor", label: "Vendor / channel" },
+          { key: "spendType", label: "Spend type" },
+          { key: "skuAge", label: "New vs existing SKU" },
+          monthDim,
+        ],
         measures: [
           { key: "committed", label: "PO committed", fmt: "usd" },
           { key: "paid", label: "PO paid", fmt: "usd" },
           { key: "unpaid", label: "PO still to pay", fmt: "usd" },
           { key: "marketing", label: "Marketing (ads + samples)", fmt: "usd" },
-          { key: "totalSpend", label: "Total spend", fmt: "usd", derive: (g) => g("committed") + g("marketing") },
+          {
+            key: "totalSpend",
+            label: "Total spend",
+            fmt: "usd",
+            derive: (g) => g("committed") + g("marketing"),
+          },
           { key: "units", label: "Units ordered", fmt: "int" },
         ],
         periodKey: "month",
         filterKeys: ["skuAge", "spendType", "family", "vendor"],
         note: (
           <>
-            <Assume title="A SKU counts as new when its first purchase order was opened within the last 6 months (from today). Live data will also check the first sale date.">New SKU = first PO opened in the last 6 months</Assume> PO spend is shown in the month the PO was opened.
+            <Assume title="A SKU counts as new when its first purchase order was opened within the last 6 months (from today). Live data will also check the first sale date.">
+              New SKU = first PO opened in the last 6 months
+            </Assume>{" "}
+            PO spend is shown in the month the PO was opened.
           </>
         ),
       },
@@ -456,7 +623,13 @@ function useDatasets(): Dataset[] {
         label: "Payments to make",
         description: "Unpaid PO installments, Non-PO payments and payroll",
         rows: payRows,
-        dimensions: [{ key: "vendor", label: "Vendor" }, { key: "category", label: "Category" }, { key: "source", label: "Source" }, { key: "status", label: "Status" }, { key: "month", label: "Due month" }],
+        dimensions: [
+          { key: "vendor", label: "Vendor" },
+          { key: "category", label: "Category" },
+          { key: "source", label: "Source" },
+          { key: "status", label: "Status" },
+          { key: "month", label: "Due month" },
+        ],
         measures: [
           { key: "amount", label: "Amount", fmt: "usd" },
           { key: "count", label: "Payments", fmt: "int" },
@@ -490,11 +663,21 @@ function useDatasets(): Dataset[] {
         label: "Accounts receivable",
         description: "What customers owe, by aging bucket and owner (USD)",
         rows: arRows,
-        dimensions: [{ key: "customer", label: "Customer" }, { key: "type", label: "Customer type" }, { key: "owner", label: "Account owner" }, { key: "bucket", label: "Aging" }],
+        dimensions: [
+          { key: "customer", label: "Customer" },
+          { key: "type", label: "Customer type" },
+          { key: "owner", label: "Account owner" },
+          { key: "bucket", label: "Aging" },
+        ],
         measures: [
           { key: "open", label: "Open (USD)", fmt: "usd" },
           { key: "overdue", label: "Overdue (USD)", fmt: "usd" },
-          { key: "overduePct", label: "% overdue", fmt: "pct", derive: (g) => div(g("overdue"), g("open")) },
+          {
+            key: "overduePct",
+            label: "% overdue",
+            fmt: "pct",
+            derive: (g) => div(g("overdue"), g("open")),
+          },
           { key: "invoices", label: "Invoices", fmt: "int" },
         ],
         periodKey: null,
@@ -505,13 +688,25 @@ function useDatasets(): Dataset[] {
         label: "Tools & subscriptions",
         description: "Cost and seat use by department and tool",
         rows: subRows,
-        dimensions: [{ key: "department", label: "Department" }, { key: "tool", label: "Tool" }, { key: "category", label: "Category" }, { key: "owner", label: "Owner" }, { key: "status", label: "Status" }, { key: "cycle", label: "Billing cycle" }],
+        dimensions: [
+          { key: "department", label: "Department" },
+          { key: "tool", label: "Tool" },
+          { key: "category", label: "Category" },
+          { key: "owner", label: "Owner" },
+          { key: "status", label: "Status" },
+          { key: "cycle", label: "Billing cycle" },
+        ],
         measures: [
           { key: "monthlyCost", label: "Monthly cost", fmt: "usd" },
           { key: "annualCost", label: "Annual cost", fmt: "usd" },
           { key: "seats", label: "Seats", fmt: "int" },
           { key: "seatsUsed", label: "Seats used", fmt: "int" },
-          { key: "seatUse", label: "Seat use", fmt: "pct", derive: (g) => div(g("seatsUsed"), g("seats")) },
+          {
+            key: "seatUse",
+            label: "Seat use",
+            fmt: "pct",
+            derive: (g) => div(g("seatsUsed"), g("seats")),
+          },
         ],
         periodKey: null,
         filterKeys: ["department", "category", "status"],
@@ -574,13 +769,23 @@ function dimLabel(d: Dimension | undefined, v: string): string {
 }
 
 function runReport(ds: Dataset, cfg: ReportConfig): Result {
-  const measures = cfg.measures.map((k) => ds.measures.find((m) => m.key === k)).filter((m): m is Measure => !!m);
+  const measures = cfg.measures
+    .map((k) => ds.measures.find((m) => m.key === k))
+    .filter((m): m is Measure => !!m);
   const rawKeys = ds.measures.filter((m) => !m.derive).map((m) => m.key);
-  const dims = cfg.rowsBy.map((k) => ds.dimensions.find((d) => d.key === k)).filter((d): d is Dimension => !!d);
-  const sorted = ds.periodKey ? [...ds.rows].sort((a, b) => String(a[ds.periodKey ?? ""] ?? "").localeCompare(String(b[ds.periodKey ?? ""] ?? ""))) : ds.rows;
+  const dims = cfg.rowsBy
+    .map((k) => ds.dimensions.find((d) => d.key === k))
+    .filter((d): d is Dimension => !!d);
+  const sorted = ds.periodKey
+    ? [...ds.rows].sort((a, b) =>
+        String(a[ds.periodKey ?? ""] ?? "").localeCompare(String(b[ds.periodKey ?? ""] ?? "")),
+      )
+    : ds.rows;
   const filtered = sorted.filter((r) => {
-    if (ds.periodKey && cfg.periods.length && !cfg.periods.includes(String(r[ds.periodKey] ?? ""))) return false;
-    for (const [k, vals] of Object.entries(cfg.filters)) if (vals.length && !vals.includes(String(r[k] ?? ""))) return false;
+    if (ds.periodKey && cfg.periods.length && !cfg.periods.includes(String(r[ds.periodKey] ?? "")))
+      return false;
+    for (const [k, vals] of Object.entries(cfg.filters))
+      if (vals.length && !vals.includes(String(r[k] ?? ""))) return false;
     return true;
   });
   const map = new Map<string, ResultRow>();
@@ -591,7 +796,12 @@ function runReport(ds: Dataset, cfg: ReportConfig): Result {
     const dimVals: Record<string, string> = {};
     for (const d of dims) dimVals[d.key] = String(r[d.key] ?? "");
     const key = dims.map((d) => dimVals[d.key]).join("|") || "All";
-    const row = map.get(key) ?? { key, dims: dimVals, cells: new Map<string, Acc>(), total: newAcc() };
+    const row = map.get(key) ?? {
+      key,
+      dims: dimVals,
+      cells: new Map<string, Acc>(),
+      total: newAcc(),
+    };
     addToAcc(row.total, r, rawKeys);
     addToAcc(grand, r, rawKeys);
     if (cfg.columnBy) {
@@ -609,13 +819,22 @@ function runReport(ds: Dataset, cfg: ReportConfig): Result {
   let rows = [...map.values()];
   const sortMeasure = measures.find((m) => m.key === cfg.sortBy);
   if (sortMeasure) {
-    rows.sort((a, b) => ((valueOf(a.total, sortMeasure) ?? 0) - (valueOf(b.total, sortMeasure) ?? 0)) * (cfg.sortDir === "desc" ? -1 : 1));
+    rows.sort(
+      (a, b) =>
+        ((valueOf(a.total, sortMeasure) ?? 0) - (valueOf(b.total, sortMeasure) ?? 0)) *
+        (cfg.sortDir === "desc" ? -1 : 1),
+    );
   } else {
     rows.sort((a, b) => a.key.localeCompare(b.key));
   }
   if (cfg.topN) rows = rows.slice(0, cfg.topN);
   const colDim = ds.dimensions.find((d) => d.key === cfg.columnBy);
-  const cols = [...columnValues].sort((a, b) => (colDim?.kind ? a.localeCompare(b) : (valueOf(grandByColumn.get(b), measures[0] ?? ds.measures[0]!) ?? 0) - (valueOf(grandByColumn.get(a), measures[0] ?? ds.measures[0]!) ?? 0)));
+  const cols = [...columnValues].sort((a, b) =>
+    colDim?.kind
+      ? a.localeCompare(b)
+      : (valueOf(grandByColumn.get(b), measures[0] ?? ds.measures[0]!) ?? 0) -
+        (valueOf(grandByColumn.get(a), measures[0] ?? ds.measures[0]!) ?? 0),
+  );
   return { rows, columnValues: cols, grand, grandByColumn, measures, dims };
 }
 
@@ -664,43 +883,136 @@ function usePresets(datasets: Dataset[], asOf: string): SavedReport[] {
         id: "brush-pick",
         title: "Brush + Hair Pick on all platforms",
         description: "GP, CM2 and NP with margins by channel",
-        config: { datasetId: "pnl", rowsBy: ["channel"], columnBy: null, measures: ["units", "netRevenue", "gp", "gpPct", "cm2", "cm2Pct", "np", "npPct", "npPerUnit"], periods: pnlMonths, filters: { sku: ["CCHAIRBRUSH1", "IE-O3AV-F28K"] }, sortBy: "netRevenue", sortDir: "desc", topN: null },
+        config: {
+          datasetId: "pnl",
+          rowsBy: ["channel"],
+          columnBy: null,
+          measures: [
+            "units",
+            "netRevenue",
+            "gp",
+            "gpPct",
+            "cm2",
+            "cm2Pct",
+            "np",
+            "npPct",
+            "npPerUnit",
+          ],
+          periods: pnlMonths,
+          filters: { sku: ["CCHAIRBRUSH1", "IE-O3AV-F28K"] },
+          sortBy: "netRevenue",
+          sortDir: "desc",
+          topN: null,
+        },
       },
       {
         id: "new-sku-spend",
         title: "Spend on new products, last 6 months",
         description: "PO commitments, paid and marketing for new SKUs",
-        config: { datasetId: "purchases", rowsBy: ["product"], columnBy: null, measures: ["committed", "paid", "unpaid", "marketing", "totalSpend", "units"], periods: periodsOf("purchases").filter((m) => m >= sixMonthStart), filters: { skuAge: [NEW_SKU] }, sortBy: "totalSpend", sortDir: "desc", topN: null },
+        config: {
+          datasetId: "purchases",
+          rowsBy: ["product"],
+          columnBy: null,
+          measures: ["committed", "paid", "unpaid", "marketing", "totalSpend", "units"],
+          periods: periodsOf("purchases").filter((m) => m >= sixMonthStart),
+          filters: { skuAge: [NEW_SKU] },
+          sortBy: "totalSpend",
+          sortDir: "desc",
+          topN: null,
+        },
       },
       {
         id: "marketplace-gp-cm-np",
         title: "Marketplace profitability: GP / CM / NP",
         description: "Each channel at every profit layer, last full month",
-        config: { datasetId: "pnl", rowsBy: ["channel"], columnBy: null, measures: ["netRevenue", "gp", "gpPct", "cm1", "cm1Pct", "cm2", "cm2Pct", "np", "npPct"], periods: lastFull, filters: {}, sortBy: "netRevenue", sortDir: "desc", topN: null },
+        config: {
+          datasetId: "pnl",
+          rowsBy: ["channel"],
+          columnBy: null,
+          measures: ["netRevenue", "gp", "gpPct", "cm1", "cm1Pct", "cm2", "cm2Pct", "np", "npPct"],
+          periods: lastFull,
+          filters: {},
+          sortBy: "netRevenue",
+          sortDir: "desc",
+          topN: null,
+        },
       },
       {
         id: "product-per-platform",
         title: "Product-wise profitability per platform",
         description: "SKU × channel matrix of NP and NP %",
-        config: { datasetId: "pnl", rowsBy: ["product"], columnBy: "channel", measures: ["np", "npPct"], periods: fullPnl, filters: {}, sortBy: "np", sortDir: "desc", topN: null },
+        config: {
+          datasetId: "pnl",
+          rowsBy: ["product"],
+          columnBy: "channel",
+          measures: ["np", "npPct"],
+          periods: fullPnl,
+          filters: {},
+          sortBy: "np",
+          sortDir: "desc",
+          topN: null,
+        },
       },
       {
         id: "weekly-cash",
         title: "Weekly payment & cash schedule",
         description: "Next 8 weeks: what to pay, receipts, cash left",
-        config: { datasetId: "weekly-cash", rowsBy: ["week"], columnBy: null, measures: ["opening", "poPayments", "nonPo", "payroll", "subscriptions", "otherOut", "paymentsOut", "receiptsIn", "closing"], periods: [], filters: {}, sortBy: null, sortDir: "desc", topN: null },
+        config: {
+          datasetId: "weekly-cash",
+          rowsBy: ["week"],
+          columnBy: null,
+          measures: [
+            "opening",
+            "poPayments",
+            "nonPo",
+            "payroll",
+            "subscriptions",
+            "otherOut",
+            "paymentsOut",
+            "receiptsIn",
+            "closing",
+          ],
+          periods: [],
+          filters: {},
+          sortBy: null,
+          sortDir: "desc",
+          topN: null,
+        },
       },
       {
         id: "conversion",
         title: "Marketing conversion by channel",
         description: "Sessions, orders, CVR, AOV, new customers, CAC",
-        config: { datasetId: "conversion", rowsBy: ["channel"], columnBy: null, measures: ["sessions", "orders", "cvr", "aov", "newCustomers", "newShare", "cac", "roas"], periods: lastMonths(periodsOf("conversion").filter((m) => m < monthKey(asOf)), 1), filters: {}, sortBy: "sessions", sortDir: "desc", topN: null },
+        config: {
+          datasetId: "conversion",
+          rowsBy: ["channel"],
+          columnBy: null,
+          measures: ["sessions", "orders", "cvr", "aov", "newCustomers", "newShare", "cac", "roas"],
+          periods: lastMonths(
+            periodsOf("conversion").filter((m) => m < monthKey(asOf)),
+            1,
+          ),
+          filters: {},
+          sortBy: "sessions",
+          sortDir: "desc",
+          topN: null,
+        },
       },
       {
         id: "profit-leaks",
         title: "Where profit leaks: shipping & fees by channel",
         description: "Shipping per unit, fee %, ROAS and NP % per platform",
-        config: { datasetId: "pnl", rowsBy: ["channel"], columnBy: null, measures: ["units", "shipPerUnit", "feePct", "adSpend", "roas", "cm1Pct", "npPct"], periods: lastFull, filters: {}, sortBy: "npPct", sortDir: "asc", topN: null },
+        config: {
+          datasetId: "pnl",
+          rowsBy: ["channel"],
+          columnBy: null,
+          measures: ["units", "shipPerUnit", "feePct", "adSpend", "roas", "cm1Pct", "npPct"],
+          periods: lastFull,
+          filters: {},
+          sortBy: "npPct",
+          sortDir: "asc",
+          topN: null,
+        },
       },
     ];
   }, [datasets, asOf]);
@@ -714,7 +1026,20 @@ export function ReportBuilder() {
   const presets = usePresets(datasets, asOf);
   const [saved, setSaved] = useState<SavedReport[]>([]);
   const [activeTitle, setActiveTitle] = useState<string>(presets[0]?.title ?? "Custom report");
-  const [cfg, setCfg] = useState<ReportConfig>(() => presets[0]?.config ?? { datasetId: "pnl", rowsBy: ["channel"], columnBy: null, measures: ["netRevenue", "np"], periods: [], filters: {}, sortBy: null, sortDir: "desc", topN: null });
+  const [cfg, setCfg] = useState<ReportConfig>(
+    () =>
+      presets[0]?.config ?? {
+        datasetId: "pnl",
+        rowsBy: ["channel"],
+        columnBy: null,
+        measures: ["netRevenue", "np"],
+        periods: [],
+        filters: {},
+        sortBy: null,
+        sortDir: "desc",
+        topN: null,
+      },
+  );
   const [saveName, setSaveName] = useState("");
 
   const ds = datasets.find((d) => d.id === cfg.datasetId) ?? datasets[0]!;
@@ -750,45 +1075,93 @@ export function ReportBuilder() {
     });
     setActiveTitle("Custom report");
   };
-  const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const toggle = (list: string[], v: string) =>
+    list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
   // Table layout
   const headDims = result.dims.map((d) => d.label);
   const measureCols: { label: string; col: string | null; m: Measure }[] = cfg.columnBy
     ? [
-        ...result.columnValues.flatMap((cv) => result.measures.map((m) => ({ label: `${dimLabel(ds.dimensions.find((d) => d.key === cfg.columnBy), cv)} · ${m.label}`, col: cv, m }))),
+        ...result.columnValues.flatMap((cv) =>
+          result.measures.map((m) => ({
+            label: `${dimLabel(
+              ds.dimensions.find((d) => d.key === cfg.columnBy),
+              cv,
+            )} · ${m.label}`,
+            col: cv,
+            m,
+          })),
+        ),
         ...result.measures.map((m) => ({ label: `Total · ${m.label}`, col: null, m })),
       ]
     : result.measures.map((m) => ({ label: m.label, col: null, m }));
-  const cellValue = (row: ResultRow, c: { col: string | null; m: Measure }) => valueOf(c.col === null ? row.total : row.cells.get(c.col), c.m);
-  const totalValue = (c: { col: string | null; m: Measure }) => valueOf(c.col === null ? result.grand : result.grandByColumn.get(c.col), c.m);
-  const rowLabel = (row: ResultRow) => result.dims.map((d) => dimLabel(d, row.dims[d.key] ?? "")).join(" · ") || "All";
+  const cellValue = (row: ResultRow, c: { col: string | null; m: Measure }) =>
+    valueOf(c.col === null ? row.total : row.cells.get(c.col), c.m);
+  const totalValue = (c: { col: string | null; m: Measure }) =>
+    valueOf(c.col === null ? result.grand : result.grandByColumn.get(c.col), c.m);
+  const rowLabel = (row: ResultRow) =>
+    result.dims.map((d) => dimLabel(d, row.dims[d.key] ?? "")).join(" · ") || "All";
 
   const chartMeasure = result.measures[0];
-  const chartRows = chartMeasure ? result.rows.slice(0, 12).map((r) => ({ label: rowLabel(r), v: valueOf(r.total, chartMeasure) ?? 0 })) : [];
+  const chartRows = chartMeasure
+    ? result.rows
+        .slice(0, 12)
+        .map((r) => ({ label: rowLabel(r), v: valueOf(r.total, chartMeasure) ?? 0 }))
+    : [];
   const chartMax = Math.max(0, ...chartRows.map((r) => Math.abs(r.v)));
 
   const doExport = () => {
-    exportCsv(activeTitle, [...headDims, ...measureCols.map((c) => c.label)], [
-      ...result.rows.map((r) => [...result.dims.map((d) => dimLabel(d, r.dims[d.key] ?? "")), ...measureCols.map((c) => String(cellValue(r, c) ?? ""))]),
-      [...result.dims.map((_, i) => (i === 0 ? "Total" : "")), ...measureCols.map((c) => String(totalValue(c) ?? ""))],
-    ]);
+    exportCsv(
+      activeTitle,
+      [...headDims, ...measureCols.map((c) => c.label)],
+      [
+        ...result.rows.map((r) => [
+          ...result.dims.map((d) => dimLabel(d, r.dims[d.key] ?? "")),
+          ...measureCols.map((c) => String(cellValue(r, c) ?? "")),
+        ]),
+        [
+          ...result.dims.map((_, i) => (i === 0 ? "Total" : "")),
+          ...measureCols.map((c) => String(totalValue(c) ?? "")),
+        ],
+      ],
+    );
   };
 
   const doSave = () => {
-    const title = saveName.trim() || `${ds.label} by ${result.dims.map((d) => d.label).join(" & ")}`;
-    setSaved((s) => [...s, { id: `saved-${s.length + 1}`, title, description: `${ds.label} · ${result.measures.map((m) => m.label).join(", ")}`, config: cfg }]);
+    const title =
+      saveName.trim() || `${ds.label} by ${result.dims.map((d) => d.label).join(" & ")}`;
+    setSaved((s) => [
+      ...s,
+      {
+        id: `saved-${s.length + 1}`,
+        title,
+        description: `${ds.label} · ${result.measures.map((m) => m.label).join(", ")}`,
+        config: cfg,
+      },
+    ]);
     setActiveTitle(title);
     setSaveName("");
     flash(`Saved "${title}" to the CEO's reports`);
   };
 
   return (
-    <Section title="Custom report builder" kicker="ASK A QUESTION" hint="Pick a ready answer or build your own" className="mt">
-      <div className="section-kicker" style={{ marginBottom: 8 }}>CEO ASKS</div>
+    <Section
+      title="Custom report builder"
+      kicker="ASK A QUESTION"
+      hint="Pick a ready answer or build your own"
+      className="mt"
+    >
+      <div className="section-kicker" style={{ marginBottom: 8 }}>
+        CEO ASKS
+      </div>
       <div className="grid-3" style={{ marginBottom: 14 }}>
         {presets.map((p) => (
-          <button key={p.id} type="button" className={`report-card${activeTitle === p.title ? " active" : ""}`} onClick={() => open(p)}>
+          <button
+            key={p.id}
+            type="button"
+            className={`report-card${activeTitle === p.title ? " active" : ""}`}
+            onClick={() => open(p)}
+          >
             <strong>{p.title}</strong>
             <span>{p.description}</span>
           </button>
@@ -796,10 +1169,17 @@ export function ReportBuilder() {
       </div>
       {saved.length ? (
         <>
-          <div className="section-kicker" style={{ marginBottom: 8 }}>SAVED BY CEO</div>
+          <div className="section-kicker" style={{ marginBottom: 8 }}>
+            SAVED BY CEO
+          </div>
           <div className="grid-3" style={{ marginBottom: 14 }}>
             {saved.map((p) => (
-              <button key={p.id} type="button" className={`report-card${activeTitle === p.title ? " active" : ""}`} onClick={() => open(p)}>
+              <button
+                key={p.id}
+                type="button"
+                className={`report-card${activeTitle === p.title ? " active" : ""}`}
+                onClick={() => open(p)}
+              >
                 <strong>{p.title}</strong>
                 <span>{p.description}</span>
               </button>
@@ -813,46 +1193,101 @@ export function ReportBuilder() {
           <div className="field">
             <label>Dataset</label>
             <select value={cfg.datasetId} onChange={(e) => changeDataset(e.target.value)}>
-              {datasets.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+              {datasets.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="field">
             <label>Rows</label>
-            <select value={cfg.rowsBy[0] ?? ""} onChange={(e) => patch({ rowsBy: [e.target.value, ...cfg.rowsBy.slice(1).filter((x) => x !== e.target.value)] })}>
-              {ds.dimensions.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+            <select
+              value={cfg.rowsBy[0] ?? ""}
+              onChange={(e) =>
+                patch({
+                  rowsBy: [
+                    e.target.value,
+                    ...cfg.rowsBy.slice(1).filter((x) => x !== e.target.value),
+                  ],
+                })
+              }
+            >
+              {ds.dimensions.map((d) => (
+                <option key={d.key} value={d.key}>
+                  {d.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="field">
             <label>Then by</label>
-            <select value={cfg.rowsBy[1] ?? ""} onChange={(e) => patch({ rowsBy: e.target.value ? [cfg.rowsBy[0] ?? "", e.target.value] : [cfg.rowsBy[0] ?? ""] })}>
+            <select
+              value={cfg.rowsBy[1] ?? ""}
+              onChange={(e) =>
+                patch({
+                  rowsBy: e.target.value
+                    ? [cfg.rowsBy[0] ?? "", e.target.value]
+                    : [cfg.rowsBy[0] ?? ""],
+                })
+              }
+            >
               <option value="">—</option>
-              {ds.dimensions.filter((d) => d.key !== cfg.rowsBy[0]).map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+              {ds.dimensions
+                .filter((d) => d.key !== cfg.rowsBy[0])
+                .map((d) => (
+                  <option key={d.key} value={d.key}>
+                    {d.label}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="field">
             <label>Columns (matrix)</label>
-            <select value={cfg.columnBy ?? ""} onChange={(e) => patch({ columnBy: e.target.value || null })}>
+            <select
+              value={cfg.columnBy ?? ""}
+              onChange={(e) => patch({ columnBy: e.target.value || null })}
+            >
               <option value="">— none —</option>
-              {ds.dimensions.filter((d) => !cfg.rowsBy.includes(d.key)).map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+              {ds.dimensions
+                .filter((d) => !cfg.rowsBy.includes(d.key))
+                .map((d) => (
+                  <option key={d.key} value={d.key}>
+                    {d.label}
+                  </option>
+                ))}
             </select>
           </div>
           <div className="field">
             <label>Sort by</label>
-            <select value={cfg.sortBy ?? ""} onChange={(e) => patch({ sortBy: e.target.value || null })}>
+            <select
+              value={cfg.sortBy ?? ""}
+              onChange={(e) => patch({ sortBy: e.target.value || null })}
+            >
               <option value="">Row name</option>
-              {result.measures.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+              {result.measures.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
             </select>
           </div>
           <div className="field">
             <label>Order</label>
-            <select value={cfg.sortDir} onChange={(e) => patch({ sortDir: e.target.value === "asc" ? "asc" : "desc" })}>
+            <select
+              value={cfg.sortDir}
+              onChange={(e) => patch({ sortDir: e.target.value === "asc" ? "asc" : "desc" })}
+            >
               <option value="desc">Highest first</option>
               <option value="asc">Lowest first</option>
             </select>
           </div>
           <div className="field">
             <label>Show</label>
-            <select value={cfg.topN ?? ""} onChange={(e) => patch({ topN: e.target.value ? Number(e.target.value) : null })}>
+            <select
+              value={cfg.topN ?? ""}
+              onChange={(e) => patch({ topN: e.target.value ? Number(e.target.value) : null })}
+            >
               <option value="">All rows</option>
               <option value="5">Top 5</option>
               <option value="10">Top 10</option>
@@ -863,26 +1298,57 @@ export function ReportBuilder() {
 
         {ds.periodKey ? (
           <div className="mt">
-            <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>{periodDim?.label ?? "Period"} <span className="muted">(none selected = all)</span></div>
+            <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>
+              {periodDim?.label ?? "Period"} <span className="muted">(none selected = all)</span>
+            </div>
             <div className="row">
               {periodOptions.map((p) => (
-                <button key={p} type="button" className={`btn${cfg.periods.includes(p) ? " primary" : ""}`} onClick={() => patch({ periods: toggle(cfg.periods, p) })}>
+                <button
+                  key={p}
+                  type="button"
+                  className={`btn${cfg.periods.includes(p) ? " primary" : ""}`}
+                  onClick={() => patch({ periods: toggle(cfg.periods, p) })}
+                >
                   {dimLabel(periodDim, p)}
                 </button>
               ))}
-              {periodOptions.length > 3 ? <button type="button" className="btn ghost" onClick={() => patch({ periods: lastMonths(periodOptions, 3) })}>Last 3</button> : null}
-              {periodOptions.length > 6 ? <button type="button" className="btn ghost" onClick={() => patch({ periods: lastMonths(periodOptions, 6) })}>Last 6</button> : null}
-              <button type="button" className="btn ghost" onClick={() => patch({ periods: [] })}>All</button>
+              {periodOptions.length > 3 ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => patch({ periods: lastMonths(periodOptions, 3) })}
+                >
+                  Last 3
+                </button>
+              ) : null}
+              {periodOptions.length > 6 ? (
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => patch({ periods: lastMonths(periodOptions, 6) })}
+                >
+                  Last 6
+                </button>
+              ) : null}
+              <button type="button" className="btn ghost" onClick={() => patch({ periods: [] })}>
+                All
+              </button>
             </div>
           </div>
         ) : null}
 
         <div className="mt">
-          <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>Measures</div>
+          <div className="small" style={{ fontWeight: 700, marginBottom: 6 }}>
+            Measures
+          </div>
           <div className="row">
             {ds.measures.map((m) => (
               <label key={m.key} className="row small" style={{ gap: 4, marginRight: 8 }}>
-                <input type="checkbox" checked={cfg.measures.includes(m.key)} onChange={() => patch({ measures: toggle(cfg.measures, m.key) })} />
+                <input
+                  type="checkbox"
+                  checked={cfg.measures.includes(m.key)}
+                  onChange={() => patch({ measures: toggle(cfg.measures, m.key) })}
+                />
                 {m.label}
               </label>
             ))}
@@ -897,14 +1363,29 @@ export function ReportBuilder() {
               const chosen = cfg.filters[k] ?? [];
               return (
                 <div className="field" key={k}>
-                  <label>{d?.label ?? k} {chosen.length ? `(${chosen.length})` : "(all)"}</label>
+                  <label>
+                    {d?.label ?? k} {chosen.length ? `(${chosen.length})` : "(all)"}
+                  </label>
                   <select
                     multiple
                     size={Math.min(5, Math.max(2, values.length))}
                     value={chosen}
-                    onChange={(e) => patch({ filters: { ...cfg.filters, [k]: [...e.target.selectedOptions].map((o) => o.value) } })}
+                    onChange={(e) =>
+                      patch({
+                        filters: {
+                          ...cfg.filters,
+                          [k]: [...e.target.selectedOptions].map((o) => o.value),
+                        },
+                      })
+                    }
                   >
-                    {values.map((v) => <option key={v} value={v}>{k === "sku" ? `${v} — ${String(ds.rows.find((r) => r[k] === v)?.["product"] ?? "")}` : dimLabel(d, v)}</option>)}
+                    {values.map((v) => (
+                      <option key={v} value={v}>
+                        {k === "sku"
+                          ? `${v} — ${String(ds.rows.find((r) => r[k] === v)?.["product"] ?? "")}`
+                          : dimLabel(d, v)}
+                      </option>
+                    ))}
                   </select>
                 </div>
               );
@@ -919,12 +1400,25 @@ export function ReportBuilder() {
           <h3>{activeTitle}</h3>
         </div>
         <div className="row">
-          <input className="control" placeholder="Name this report" value={saveName} onChange={(e) => setSaveName(e.target.value)} />
-          <button className="btn" type="button" onClick={doSave}>☆ Save as report</button>
-          <button className="btn" type="button" onClick={doExport}>⇩ Export CSV</button>
+          <input
+            className="control"
+            placeholder="Name this report"
+            value={saveName}
+            onChange={(e) => setSaveName(e.target.value)}
+          />
+          <button className="btn" type="button" onClick={doSave}>
+            ☆ Save as report
+          </button>
+          <button className="btn" type="button" onClick={doExport}>
+            ⇩ Export CSV
+          </button>
         </div>
       </div>
-      {ds.note ? <div className="small" style={{ marginBottom: 10 }}>{ds.note}</div> : null}
+      {ds.note ? (
+        <div className="small" style={{ marginBottom: 10 }}>
+          {ds.note}
+        </div>
+      ) : null}
 
       {result.measures.length === 0 ? (
         <div className="empty">Tick at least one measure.</div>
@@ -934,32 +1428,60 @@ export function ReportBuilder() {
             <table>
               <thead>
                 <tr>
-                  {headDims.map((h) => <th key={h}>{h}</th>)}
-                  {measureCols.map((c) => <th key={c.label} className="num">{c.label}</th>)}
+                  {headDims.map((h) => (
+                    <th key={h}>{h}</th>
+                  ))}
+                  {measureCols.map((c) => (
+                    <th key={c.label} className="num">
+                      {c.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {result.rows.length === 0 ? (
-                  <tr><td colSpan={headDims.length + measureCols.length}><div className="empty">No rows match these filters.</div></td></tr>
+                  <tr>
+                    <td colSpan={headDims.length + measureCols.length}>
+                      <div className="empty">No rows match these filters.</div>
+                    </td>
+                  </tr>
                 ) : (
                   result.rows.map((r) => (
                     <tr key={r.key}>
                       {result.dims.map((d, i) => (
-                        <td key={d.key}>{i === 0 ? <strong>{dimLabel(d, r.dims[d.key] ?? "")}</strong> : dimLabel(d, r.dims[d.key] ?? "")}</td>
+                        <td key={d.key}>
+                          {i === 0 ? (
+                            <strong>{dimLabel(d, r.dims[d.key] ?? "")}</strong>
+                          ) : (
+                            dimLabel(d, r.dims[d.key] ?? "")
+                          )}
+                        </td>
                       ))}
                       {measureCols.map((c) => {
                         const v = cellValue(r, c);
-                        return <td key={c.label} className={`num${v !== null && v < 0 ? " neg" : ""}`}>{fmt(v, c.m.fmt)}</td>;
+                        return (
+                          <td key={c.label} className={`num${v !== null && v < 0 ? " neg" : ""}`}>
+                            {fmt(v, c.m.fmt)}
+                          </td>
+                        );
                       })}
                     </tr>
                   ))
                 )}
                 {result.rows.length > 1 || cfg.topN ? (
                   <tr className="total-row">
-                    {result.dims.map((d, i) => <td key={d.key}>{i === 0 ? (cfg.topN ? "Total (all rows)" : "Total") : ""}</td>)}
+                    {result.dims.map((d, i) => (
+                      <td key={d.key}>
+                        {i === 0 ? (cfg.topN ? "Total (all rows)" : "Total") : ""}
+                      </td>
+                    ))}
                     {measureCols.map((c) => {
                       const v = totalValue(c);
-                      return <td key={c.label} className={`num${v !== null && v < 0 ? " neg" : ""}`}>{fmt(v, c.m.fmt)}</td>;
+                      return (
+                        <td key={c.label} className={`num${v !== null && v < 0 ? " neg" : ""}`}>
+                          {fmt(v, c.m.fmt)}
+                        </td>
+                      );
                     })}
                   </tr>
                 ) : null}
@@ -968,9 +1490,18 @@ export function ReportBuilder() {
           </div>
           {chartMeasure && chartRows.length > 1 ? (
             <div className="mt">
-              <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>{chartMeasure.label}</div>
+              <div className="small" style={{ fontWeight: 700, marginBottom: 4 }}>
+                {chartMeasure.label}
+              </div>
               {chartRows.map((r) => (
-                <HBar key={r.label} label={r.label} value={Math.abs(r.v)} max={chartMax} display={fmt(r.v, chartMeasure.fmt)} tone={r.v < 0 ? "bad" : ""} />
+                <HBar
+                  key={r.label}
+                  label={r.label}
+                  value={Math.abs(r.v)}
+                  max={chartMax}
+                  display={fmt(r.v, chartMeasure.fmt)}
+                  tone={r.v < 0 ? "bad" : ""}
+                />
               ))}
             </div>
           ) : null}
@@ -978,7 +1509,11 @@ export function ReportBuilder() {
       )}
 
       <div className="notice mt" style={{ marginBottom: 0 }}>
-        <strong>How to ask for a new report:</strong> try the builder first: pick the data, what to group by and the numbers you want, then save it. If the data isn't in the list (for example, a new platform or a cost Finance doesn't capture yet), tell Claude the question the CEO asked in plain words, for example "profit on the 32oz range at Walmart last quarter", and it gets added as a dataset or a one-click report here.
+        <strong>How to ask for a new report:</strong> try the builder first: pick the data, what to
+        group by and the numbers you want, then save it. If the data isn't in the list (for example,
+        a new platform or a cost Finance doesn't capture yet), tell Claude the question the CEO
+        asked in plain words, for example "profit on the 32oz range at Walmart last quarter", and it
+        gets added as a dataset or a one-click report here.
       </div>
     </Section>
   );

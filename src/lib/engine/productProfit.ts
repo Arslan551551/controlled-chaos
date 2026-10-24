@@ -63,9 +63,23 @@ export interface PnlLine extends PnlLayers {
 }
 
 export const EMPTY_LAYERS: PnlLayers = {
-  units: 0, grossSales: 0, discounts: 0, refunds: 0, netRevenue: 0, cogs: 0, gp: 0,
-  platformFees: 0, fulfillmentFees: 0, shippingCost: 0, cm1: 0, adSpend: 0, sampleCost: 0,
-  otherVariable: 0, cm2: 0, overhead: 0, np: 0,
+  units: 0,
+  grossSales: 0,
+  discounts: 0,
+  refunds: 0,
+  netRevenue: 0,
+  cogs: 0,
+  gp: 0,
+  platformFees: 0,
+  fulfillmentFees: 0,
+  shippingCost: 0,
+  cm1: 0,
+  adSpend: 0,
+  sampleCost: 0,
+  otherVariable: 0,
+  cm2: 0,
+  overhead: 0,
+  np: 0,
 };
 
 /** Re-derives the subtotal layers from the raw lines (so sums always reconcile). */
@@ -77,7 +91,20 @@ export function finishLayers(l: PnlLayers): PnlLayers {
   return { ...l, netRevenue, gp, cm1, cm2, np: cm2 - l.overhead };
 }
 
-const RAW: (keyof PnlLayers)[] = ["units", "grossSales", "discounts", "refunds", "cogs", "platformFees", "fulfillmentFees", "shippingCost", "adSpend", "sampleCost", "otherVariable", "overhead"];
+const RAW: (keyof PnlLayers)[] = [
+  "units",
+  "grossSales",
+  "discounts",
+  "refunds",
+  "cogs",
+  "platformFees",
+  "fulfillmentFees",
+  "shippingCost",
+  "adSpend",
+  "sampleCost",
+  "otherVariable",
+  "overhead",
+];
 
 export function addLayers(a: PnlLayers, b: PnlLayers): PnlLayers {
   const out = { ...a };
@@ -113,7 +140,14 @@ export function buildProductPnl(i: ProductPnlInput): ProductPnl {
   const map = new Map<string, PnlLine>();
   for (const r of rows) {
     const key = `${r.sku}|${r.channel}`;
-    const prev = map.get(key) ?? { ...EMPTY_LAYERS, key, label: `${i.label(r.sku)} · ${r.channel}`, sku: r.sku, channel: r.channel, family: i.family(r.sku) };
+    const prev = map.get(key) ?? {
+      ...EMPTY_LAYERS,
+      key,
+      label: `${i.label(r.sku)} · ${r.channel}`,
+      sku: r.sku,
+      channel: r.channel,
+      family: i.family(r.sku),
+    };
     const add: PnlLayers = finishLayers({
       ...EMPTY_LAYERS,
       units: r.units,
@@ -133,7 +167,9 @@ export function buildProductPnl(i: ProductPnlInput): ProductPnl {
   const lines = [...map.values()];
   // Allocate channel overhead by net-revenue share within the channel
   const channelNet = new Map<SalesChannel, number>();
-  for (const l of lines) if (l.channel) channelNet.set(l.channel, (channelNet.get(l.channel) ?? 0) + Math.max(0, l.netRevenue));
+  for (const l of lines)
+    if (l.channel)
+      channelNet.set(l.channel, (channelNet.get(l.channel) ?? 0) + Math.max(0, l.netRevenue));
   for (const l of lines) {
     if (!l.channel) continue;
     const pool = i.channelOverhead[l.channel] ?? 0;
@@ -141,7 +177,10 @@ export function buildProductPnl(i: ProductPnlInput): ProductPnl {
     l.overhead = base > 0 ? (pool * Math.max(0, l.netRevenue)) / base : 0;
     Object.assign(l, finishLayers(l));
   }
-  const group = (keyOf: (l: PnlLine) => string, labelOf: (k: string, l: PnlLine) => Partial<PnlLine>): PnlLine[] => {
+  const group = (
+    keyOf: (l: PnlLine) => string,
+    labelOf: (k: string, l: PnlLine) => Partial<PnlLine>,
+  ): PnlLine[] => {
     const g = new Map<string, PnlLine[]>();
     for (const l of lines) g.set(keyOf(l), [...(g.get(keyOf(l)) ?? []), l]);
     return [...g.entries()]
@@ -150,9 +189,18 @@ export function buildProductPnl(i: ProductPnlInput): ProductPnl {
   };
   return {
     lines: lines.sort((a, b) => b.netRevenue - a.netRevenue),
-    bySku: group((l) => l.sku ?? "", (k, l) => ({ sku: k, label: i.label(k), family: l.family ?? "" })),
-    byChannel: group((l) => l.channel ?? "", (k) => ({ channel: k as SalesChannel, label: k })),
-    byFamily: group((l) => l.family ?? "", (k) => ({ family: k, label: k })),
+    bySku: group(
+      (l) => l.sku ?? "",
+      (k, l) => ({ sku: k, label: i.label(k), family: l.family ?? "" }),
+    ),
+    byChannel: group(
+      (l) => l.channel ?? "",
+      (k) => ({ channel: k as SalesChannel, label: k }),
+    ),
+    byFamily: group(
+      (l) => l.family ?? "",
+      (k) => ({ family: k, label: k }),
+    ),
     total: sumLayers(lines),
   };
 }
@@ -173,7 +221,16 @@ export function actualRoas(l: PnlLayers): number | null {
 
 // ---------------------------------------------------------------- drivers
 
-export type CostLine = "cogs" | "platformFees" | "fulfillmentFees" | "shippingCost" | "adSpend" | "sampleCost" | "refunds" | "discounts" | "otherVariable";
+export type CostLine =
+  | "cogs"
+  | "platformFees"
+  | "fulfillmentFees"
+  | "shippingCost"
+  | "adSpend"
+  | "sampleCost"
+  | "refunds"
+  | "discounts"
+  | "otherVariable";
 
 export const COST_LINES: { key: CostLine; label: string }[] = [
   { key: "cogs", label: "Product cost (COGS)" },
@@ -191,20 +248,31 @@ export const COST_LINES: { key: CostLine; label: string }[] = [
  * Target % of net revenue per channel and cost line. Where no target is set the
  * company average for that cost line is used. Sample targets — to be agreed with the CEO.
  */
-export const DEFAULT_BENCHMARKS: Partial<Record<SalesChannel, Partial<Record<CostLine, number>>>> = {
-  Amazon: { platformFees: 0.16, fulfillmentFees: 0.22, adSpend: 0.1, refunds: 0.03 },
-  Shopify: { platformFees: 0.035, shippingCost: 0.15, adSpend: 0.18, discounts: 0.08 },
-  "TikTok Shop": { platformFees: 0.08, shippingCost: 0.15, adSpend: 0.15, sampleCost: 0.025, refunds: 0.04, discounts: 0.06 },
-  Walmart: { platformFees: 0.16, fulfillmentFees: 0.22, refunds: 0.035 },
-  "Salon Direct": { otherVariable: 0.08, shippingCost: 0.12 },
-  Distributor: { otherVariable: 0.04, shippingCost: 0.06 },
-};
+export const DEFAULT_BENCHMARKS: Partial<Record<SalesChannel, Partial<Record<CostLine, number>>>> =
+  {
+    Amazon: { platformFees: 0.16, fulfillmentFees: 0.22, adSpend: 0.1, refunds: 0.03 },
+    Shopify: { platformFees: 0.035, shippingCost: 0.15, adSpend: 0.18, discounts: 0.08 },
+    "TikTok Shop": {
+      platformFees: 0.08,
+      shippingCost: 0.15,
+      adSpend: 0.15,
+      sampleCost: 0.025,
+      refunds: 0.04,
+      discounts: 0.06,
+    },
+    Walmart: { platformFees: 0.16, fulfillmentFees: 0.22, refunds: 0.035 },
+    "Salon Direct": { otherVariable: 0.08, shippingCost: 0.12 },
+    Distributor: { otherVariable: 0.04, shippingCost: 0.06 },
+  };
 
 const SUGGEST: Record<CostLine, string> = {
   cogs: "Renegotiate the fill / purchase price, or raise the selling price.",
-  platformFees: "Check the referral category and size tier; raise the price or sell as a bundle so fees are spread over more value.",
-  fulfillmentFees: "Review the FBA/WFS size tier and storage; move slow movers out of FBA; bundle low-price items.",
-  shippingCost: "Renegotiate carrier rates or use the platform's own shipping programme; raise the free-shipping threshold; ship bundles instead of single units.",
+  platformFees:
+    "Check the referral category and size tier; raise the price or sell as a bundle so fees are spread over more value.",
+  fulfillmentFees:
+    "Review the FBA/WFS size tier and storage; move slow movers out of FBA; bundle low-price items.",
+  shippingCost:
+    "Renegotiate carrier rates or use the platform's own shipping programme; raise the free-shipping threshold; ship bundles instead of single units.",
   adSpend: "Cut campaigns running below breakeven ROAS and move budget to SKUs with margin room.",
   sampleCost: "Cap creator samples and require a minimum GMV per sample sent.",
   refunds: "Investigate return reasons (damage, listing accuracy) and fix the top cause.",
@@ -285,7 +353,9 @@ export function profitDrivers(
     const be = breakevenRoas(l);
     const roas = actualRoas(l);
     const adsProblem = be !== null && roas !== null && roas < be;
-    const biggest = COST_LINES.filter((c) => c.key !== "cogs").sort((a, b) => l[b.key] - l[a.key])[0]!;
+    const biggest = COST_LINES.filter((c) => c.key !== "cogs").sort(
+      (a, b) => l[b.key] - l[a.key],
+    )[0]!;
     leaks.push({
       id: `sku-${l.sku}-${l.channel}`,
       scope: "sku",
@@ -300,7 +370,9 @@ export function profitDrivers(
       changePts: null,
       monthlyImpact: -l.cm2 / months,
       headline: `${skuLabel(l.sku)} on ${l.channel} loses ${usd(-l.cm2 / months)}/month after marketing (CM2 ${p(margin(l.cm2, l))})${
-        adsProblem && be !== null && roas !== null ? ` — ROAS ${roas.toFixed(2)} vs breakeven ${be.toFixed(2)}` : ""
+        adsProblem && be !== null && roas !== null
+          ? ` — ROAS ${roas.toFixed(2)} vs breakeven ${be.toFixed(2)}`
+          : ""
       }`,
       suggestion: adsProblem
         ? `Cut ${l.channel} ads on this SKU to below ${usd(Math.max(0, l.cm1) / months)}/month, or raise the price.`

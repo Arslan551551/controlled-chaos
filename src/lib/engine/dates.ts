@@ -28,7 +28,9 @@ export function addMonths(iso: string, months: number): string {
   const d = toDate(iso);
   const day = d.getUTCDate();
   const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, 1));
-  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  const lastDay = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+  ).getUTCDate();
   target.setUTCDate(Math.min(day, lastDay));
   return toIso(target);
 }

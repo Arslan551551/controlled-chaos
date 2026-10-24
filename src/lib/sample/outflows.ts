@@ -6,11 +6,37 @@
 
 import type { ChannelRecord, Resolution, StockOutflow } from "../engine/outflows.ts";
 
-const o = (id: string, date: string, sku: string, qty: number, kind: StockOutflow["kind"], reference: string, location: StockOutflow["location"] = "Brentwood"): StockOutflow =>
-  ({ id, date, sku, location, qty, kind, reference });
+const o = (
+  id: string,
+  date: string,
+  sku: string,
+  qty: number,
+  kind: StockOutflow["kind"],
+  reference: string,
+  location: StockOutflow["location"] = "Brentwood",
+): StockOutflow => ({ id, date, sku, location, qty, kind, reference });
 
-const r = (id: string, source: ChannelRecord["source"], date: string, sku: string, qty: number, reference: string, extra: Partial<ChannelRecord> = {}): ChannelRecord =>
-  ({ id, source, reference, date, sku, qty, receivedQty: null, closed: false, requestedBy: null, note: "", ...extra });
+const r = (
+  id: string,
+  source: ChannelRecord["source"],
+  date: string,
+  sku: string,
+  qty: number,
+  reference: string,
+  extra: Partial<ChannelRecord> = {},
+): ChannelRecord => ({
+  id,
+  source,
+  reference,
+  date,
+  sku,
+  qty,
+  receivedQty: null,
+  closed: false,
+  requestedBy: null,
+  note: "",
+  ...extra,
+});
 
 export const stockOutflows: StockOutflow[] = [
   // Shopify / TikTok order shipments (weekly totals per SKU from ShipStation)
@@ -49,20 +75,48 @@ export const channelRecords: ChannelRecord[] = [
   r("TT-41-5", "TikTok Shop", "2026-10-11", "CONTCHAOSCC5OZ", 92, "TikTok orders wk41"),
   r("TT-42-5", "TikTok Shop", "2026-10-18", "CONTCHAOSCC5OZ", 121, "TikTok orders wk42"),
   // Amazon SP-API inbound shipments
-  r("FBA-1", "Amazon FBA Inbound", "2026-10-06", "CONTCHAOSCC5OZ", 1200, "FBA15K2QX7", { receivedQty: 1152, closed: true, note: "Amazon closed shipment 18 Oct" }),
-  r("FBA-2", "Amazon FBA Inbound", "2026-10-14", "MOISTAHR8OZPO", 900, "FBA15K3MZ1", { receivedQty: 900, closed: true }),
-  r("FBA-3", "Amazon FBA Inbound", "2026-10-21", "CONTCHAOSCC3OZ", 600, "FBA15K4TT9", { receivedQty: 240, closed: false, note: "Receiving in progress" }),
+  r("FBA-1", "Amazon FBA Inbound", "2026-10-06", "CONTCHAOSCC5OZ", 1200, "FBA15K2QX7", {
+    receivedQty: 1152,
+    closed: true,
+    note: "Amazon closed shipment 18 Oct",
+  }),
+  r("FBA-2", "Amazon FBA Inbound", "2026-10-14", "MOISTAHR8OZPO", 900, "FBA15K3MZ1", {
+    receivedQty: 900,
+    closed: true,
+  }),
+  r("FBA-3", "Amazon FBA Inbound", "2026-10-21", "CONTCHAOSCC3OZ", 600, "FBA15K4TT9", {
+    receivedQty: 240,
+    closed: false,
+    note: "Receiving in progress",
+  }),
   // Walmart WFS inbound order
-  r("WFS-1", "Walmart WFS Inbound", "2026-10-09", "CLNSAHR8OZGFF", 300, "WFS-882104", { receivedQty: 296, closed: false }),
+  r("WFS-1", "Walmart WFS Inbound", "2026-10-09", "CLNSAHR8OZGFF", 300, "WFS-882104", {
+    receivedQty: 296,
+    closed: false,
+  }),
   // Warehouse transfer
-  r("TR-1", "Warehouse Transfer", "2026-10-16", "CLNSAHR8OZGFF", 1200, "TR-GA-BW-1016", { note: "Georgia → Brentwood" }),
+  r("TR-1", "Warehouse Transfer", "2026-10-16", "CLNSAHR8OZGFF", 1200, "TR-GA-BW-1016", {
+    note: "Georgia → Brentwood",
+  }),
   // Distributor shipment (QuickBooks invoice 30515 shipped)
-  r("DS-1", "Distributor Shipment", "2026-10-02", "MOISTAHR8OZPO", 480, "BSE PO 30515", { note: "Beauty Supply East" }),
+  r("DS-1", "Distributor Shipment", "2026-10-02", "MOISTAHR8OZPO", 480, "BSE PO 30515", {
+    note: "Beauty Supply East",
+  }),
   // Approved manual requests
-  r("MR-1", "Manual Request", "2026-10-07", "CONTCHAOSCC5OZ", 24, "Influencer kit – @curlqueen", { requestedBy: "Marketing Manager" }),
-  r("MR-2", "Manual Request", "2026-10-15", "MOISTAHR8OZPO", 24, "Salon education samples", { requestedBy: "Salon Rep – Southeast", note: "Approved for 24 units" }),
+  r("MR-1", "Manual Request", "2026-10-07", "CONTCHAOSCC5OZ", 24, "Influencer kit – @curlqueen", {
+    requestedBy: "Marketing Manager",
+  }),
+  r("MR-2", "Manual Request", "2026-10-15", "MOISTAHR8OZPO", 24, "Salon education samples", {
+    requestedBy: "Salon Rep – Southeast",
+    note: "Approved for 24 units",
+  }),
 ];
 
 export const outflowResolutions: Resolution[] = [
-  { outflowId: "SS-506", reason: "Count correction after September count sheet", by: "Sr Finance Officer", at: "2026-10-01" },
+  {
+    outflowId: "SS-506",
+    reason: "Count correction after September count sheet",
+    by: "Sr Finance Officer",
+    at: "2026-10-01",
+  },
 ];

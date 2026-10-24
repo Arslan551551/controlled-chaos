@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { actualRoas, breakevenRoas, buildProductPnl, margin, profitDrivers, type SkuChannelMonth } from "./productProfit.ts";
+import {
+  actualRoas,
+  breakevenRoas,
+  buildProductPnl,
+  margin,
+  profitDrivers,
+  type SkuChannelMonth,
+} from "./productProfit.ts";
 
 const row = (over: Partial<SkuChannelMonth>): SkuChannelMonth => ({
   sku: "A",
@@ -29,7 +36,22 @@ const base = {
 describe("layered product P&L", () => {
   const pnl = buildProductPnl({
     ...base,
-    rows: [row({}), row({ sku: "B", channel: "TikTok Shop", units: 50, grossSales: 600, discounts: 60, refunds: 30, platformFees: 48, fulfillmentFees: 60, shippingCost: 205, adSpend: 120, sampleCost: 40 })],
+    rows: [
+      row({}),
+      row({
+        sku: "B",
+        channel: "TikTok Shop",
+        units: 50,
+        grossSales: 600,
+        discounts: 60,
+        refunds: 30,
+        platformFees: 48,
+        fulfillmentFees: 60,
+        shippingCost: 205,
+        adSpend: 120,
+        sampleCost: 40,
+      }),
+    ],
     channelOverhead: { Amazon: 90 },
   });
   const a = pnl.lines.find((l) => l.sku === "A")!;
@@ -48,7 +70,9 @@ describe("layered product P&L", () => {
   it("totals reconcile across SKU, channel and family", () => {
     expect(pnl.total.np).toBe(pnl.bySku.reduce((t, x) => t + x.np, 0));
     expect(pnl.byChannel).toHaveLength(2);
-    expect(pnl.byFamily.find((f) => f.family === "Brushes")!.cm2).toBe(510 - 100 - 48 - 60 - 205 - 120 - 40);
+    expect(pnl.byFamily.find((f) => f.family === "Brushes")!.cm2).toBe(
+      510 - 100 - 48 - 60 - 205 - 120 - 40,
+    );
   });
 
   it("computes breakeven ROAS = net revenue ÷ CM1", () => {
@@ -65,7 +89,22 @@ describe("layered product P&L", () => {
 describe("profit drivers", () => {
   const current = buildProductPnl({
     ...base,
-    rows: [row({}), row({ sku: "B", channel: "TikTok Shop", units: 50, grossSales: 600, discounts: 60, refunds: 30, platformFees: 48, fulfillmentFees: 60, shippingCost: 205, adSpend: 120, sampleCost: 40 })],
+    rows: [
+      row({}),
+      row({
+        sku: "B",
+        channel: "TikTok Shop",
+        units: 50,
+        grossSales: 600,
+        discounts: 60,
+        refunds: 30,
+        platformFees: 48,
+        fulfillmentFees: 60,
+        shippingCost: 205,
+        adSpend: 120,
+        sampleCost: 40,
+      }),
+    ],
     channelOverhead: {},
   });
   const leaks = profitDrivers(current, 1, null, { "TikTok Shop": { shippingCost: 0.15 } });
@@ -84,6 +123,7 @@ describe("profit drivers", () => {
   });
 
   it("ranks biggest leaks first", () => {
-    for (let i = 1; i < leaks.length; i++) expect(leaks[i - 1]!.monthlyImpact >= leaks[i]!.monthlyImpact).toBe(true);
+    for (let i = 1; i < leaks.length; i++)
+      expect(leaks[i - 1]!.monthlyImpact >= leaks[i]!.monthlyImpact).toBe(true);
   });
 });

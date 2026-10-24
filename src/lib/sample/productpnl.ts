@@ -47,12 +47,32 @@ const RETAIL: Record<string, number> = {
 
 /** Share of the channel's gross sales by SKU (sums to ~0.75). */
 const RETAIL_MIX: Record<string, number> = {
-  CONTCHAOSCC5OZ: 0.2, MOISTAHR8OZPO: 0.14, CONTCHAOSCC3OZ: 0.1, CLNSAHR8OZGFF: 0.1, CCHAIRCOMBPW: 0.03, CCHAIRBRUSH1: 0.04,
-  "32-OZ-CURLCREME": 0.03, "32-OZ-HAIRMOISTURIZER": 0.025, "32-OZ-HAIRCLEANSER": 0.015, "CC-LICS-8OZ": 0.03, "CC-LICS-3.4OZ": 0.02, "IE-O3AV-F28K": 0.015,
+  CONTCHAOSCC5OZ: 0.2,
+  MOISTAHR8OZPO: 0.14,
+  CONTCHAOSCC3OZ: 0.1,
+  CLNSAHR8OZGFF: 0.1,
+  CCHAIRCOMBPW: 0.03,
+  CCHAIRBRUSH1: 0.04,
+  "32-OZ-CURLCREME": 0.03,
+  "32-OZ-HAIRMOISTURIZER": 0.025,
+  "32-OZ-HAIRCLEANSER": 0.015,
+  "CC-LICS-8OZ": 0.03,
+  "CC-LICS-3.4OZ": 0.02,
+  "IE-O3AV-F28K": 0.015,
 };
 const TRADE_MIX: Record<string, number> = {
-  CONTCHAOSCC5OZ: 0.18, MOISTAHR8OZPO: 0.14, CONTCHAOSCC3OZ: 0.06, CLNSAHR8OZGFF: 0.1, CCHAIRCOMBPW: 0.02, CCHAIRBRUSH1: 0.02,
-  "32-OZ-CURLCREME": 0.08, "32-OZ-HAIRMOISTURIZER": 0.06, "32-OZ-HAIRCLEANSER": 0.04, "CC-LICS-8OZ": 0.03, "CC-LICS-3.4OZ": 0.01, "IE-O3AV-F28K": 0.01,
+  CONTCHAOSCC5OZ: 0.18,
+  MOISTAHR8OZPO: 0.14,
+  CONTCHAOSCC3OZ: 0.06,
+  CLNSAHR8OZGFF: 0.1,
+  CCHAIRCOMBPW: 0.02,
+  CCHAIRBRUSH1: 0.02,
+  "32-OZ-CURLCREME": 0.08,
+  "32-OZ-HAIRMOISTURIZER": 0.06,
+  "32-OZ-HAIRCLEANSER": 0.04,
+  "CC-LICS-8OZ": 0.03,
+  "CC-LICS-3.4OZ": 0.01,
+  "IE-O3AV-F28K": 0.01,
 };
 
 interface ChannelRates {
@@ -69,12 +89,72 @@ interface ChannelRates {
 }
 
 const RATES: Record<SalesChannel, ChannelRates> = {
-  Amazon: { priceFactor: 1, discountPct: 0.03, refundPct: 0.03, platformFeePct: 0.155, fulfilPerUnit: 2.9, shipPerUnit: 0, samplePct: 0, otherPct: 0.005, accessoryAdBoost: 1.2 },
-  Shopify: { priceFactor: 1, discountPct: 0.08, refundPct: 0.04, platformFeePct: 0.035, fulfilPerUnit: 1.2, shipPerUnit: 2.6, samplePct: 0.01, otherPct: 0, accessoryAdBoost: 1.3 },
-  "TikTok Shop": { priceFactor: 0.94, discountPct: 0.1, refundPct: 0.06, platformFeePct: 0.08, fulfilPerUnit: 1.2, shipPerUnit: 4.1, samplePct: 0.045, otherPct: 0, accessoryAdBoost: 2.2 },
-  Walmart: { priceFactor: 1, discountPct: 0.02, refundPct: 0.07, platformFeePct: 0.15, fulfilPerUnit: 4.4, shipPerUnit: 0, samplePct: 0, otherPct: 0, accessoryAdBoost: 1 },
-  "Salon Direct": { priceFactor: 0.55, discountPct: 0.05, refundPct: 0.01, platformFeePct: 0, fulfilPerUnit: 0.6, shipPerUnit: 1.1, samplePct: 0.01, otherPct: 0.07, accessoryAdBoost: 1 },
-  Distributor: { priceFactor: 0.45, discountPct: 0, refundPct: 0, platformFeePct: 0, fulfilPerUnit: 0.35, shipPerUnit: 0.4, samplePct: 0, otherPct: 0.04, accessoryAdBoost: 1 },
+  Amazon: {
+    priceFactor: 1,
+    discountPct: 0.03,
+    refundPct: 0.03,
+    platformFeePct: 0.155,
+    fulfilPerUnit: 2.9,
+    shipPerUnit: 0,
+    samplePct: 0,
+    otherPct: 0.005,
+    accessoryAdBoost: 1.2,
+  },
+  Shopify: {
+    priceFactor: 1,
+    discountPct: 0.08,
+    refundPct: 0.04,
+    platformFeePct: 0.035,
+    fulfilPerUnit: 1.2,
+    shipPerUnit: 2.6,
+    samplePct: 0.01,
+    otherPct: 0,
+    accessoryAdBoost: 1.3,
+  },
+  "TikTok Shop": {
+    priceFactor: 0.94,
+    discountPct: 0.1,
+    refundPct: 0.06,
+    platformFeePct: 0.08,
+    fulfilPerUnit: 1.2,
+    shipPerUnit: 4.1,
+    samplePct: 0.045,
+    otherPct: 0,
+    accessoryAdBoost: 2.2,
+  },
+  Walmart: {
+    priceFactor: 1,
+    discountPct: 0.02,
+    refundPct: 0.07,
+    platformFeePct: 0.15,
+    fulfilPerUnit: 4.4,
+    shipPerUnit: 0,
+    samplePct: 0,
+    otherPct: 0,
+    accessoryAdBoost: 1,
+  },
+  "Salon Direct": {
+    priceFactor: 0.55,
+    discountPct: 0.05,
+    refundPct: 0.01,
+    platformFeePct: 0,
+    fulfilPerUnit: 0.6,
+    shipPerUnit: 1.1,
+    samplePct: 0.01,
+    otherPct: 0.07,
+    accessoryAdBoost: 1,
+  },
+  Distributor: {
+    priceFactor: 0.45,
+    discountPct: 0,
+    refundPct: 0,
+    platformFeePct: 0,
+    fulfilPerUnit: 0.35,
+    shipPerUnit: 0.4,
+    samplePct: 0,
+    otherPct: 0.04,
+    accessoryAdBoost: 1,
+  },
 };
 
 /** SKU × channel overrides: the brush is heavily discounted on TikTok to compete. */
@@ -93,9 +173,14 @@ function build(): SkuChannelMonth[] {
     const rate = RATES[channel];
     const mix = channel === "Salon Direct" || channel === "Distributor" ? TRADE_MIX : RETAIL_MIX;
     for (const month of SALES_MONTHS) {
-      const channelGross = channelSales.find((c) => c.channel === channel && c.month === month)?.grossSales ?? 0;
-      const channelAds = adMetrics.filter((a) => a.channel === channel && a.month === month).reduce((t, a) => t + a.spend, 0);
-      const weights = Object.entries(mix).map(([sku, w]) => [sku, w * (ACCESSORIES.has(sku) ? rate.accessoryAdBoost : 1)] as const);
+      const channelGross =
+        channelSales.find((c) => c.channel === channel && c.month === month)?.grossSales ?? 0;
+      const channelAds = adMetrics
+        .filter((a) => a.channel === channel && a.month === month)
+        .reduce((t, a) => t + a.spend, 0);
+      const weights = Object.entries(mix).map(
+        ([sku, w]) => [sku, w * (ACCESSORIES.has(sku) ? rate.accessoryAdBoost : 1)] as const,
+      );
       const weightTotal = weights.reduce((t, [, w]) => t + w, 0);
       // Ads attributed to our SKUs: their share of channel gross (~75%) of the channel's spend
       const attributableAds = channelAds * Object.values(mix).reduce((t, w) => t + w, 0);

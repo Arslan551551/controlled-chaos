@@ -58,7 +58,9 @@ export function batchTotals(batch: PayrollBatch) {
 }
 
 /** Department totals of payable salary (gross + PF release), as in the "Payroll Summary" sheet. */
-export function departmentTotals(batch: PayrollBatch): { department: string; employees: number; netPkr: number; netUsd: number }[] {
+export function departmentTotals(
+  batch: PayrollBatch,
+): { department: string; employees: number; netPkr: number; netUsd: number }[] {
   const map = new Map<string, { employees: number; netPkr: number }>();
   for (const l of batch.lines) {
     const d = map.get(l.department) ?? { employees: 0, netPkr: 0 };
@@ -67,7 +69,12 @@ export function departmentTotals(batch: PayrollBatch): { department: string; emp
     map.set(l.department, d);
   }
   return [...map.entries()]
-    .map(([department, d]) => ({ department, employees: d.employees, netPkr: round2(d.netPkr), netUsd: batch.fxRate > 0 ? round2(d.netPkr / batch.fxRate) : 0 }))
+    .map(([department, d]) => ({
+      department,
+      employees: d.employees,
+      netPkr: round2(d.netPkr),
+      netUsd: batch.fxRate > 0 ? round2(d.netPkr / batch.fxRate) : 0,
+    }))
     .sort((a, b) => b.netPkr - a.netPkr);
 }
 
@@ -83,7 +90,12 @@ export function toPlannedPayment(batch: PayrollBatch): PlannedPayment {
     category: "Payroll",
     amount: t.netUsd,
     dueDate: batch.payDate,
-    status: batch.status === "Paid" ? "Paid" : batch.status === "Approved by CEO" ? "Approved" : "Planned",
+    status:
+      batch.status === "Paid"
+        ? "Paid"
+        : batch.status === "Approved by CEO"
+          ? "Approved"
+          : "Planned",
   };
 }
 

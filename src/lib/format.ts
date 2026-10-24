@@ -1,6 +1,9 @@
 export function money(v: number | null | undefined, decimals = 2): string {
   const n = Number(v ?? 0);
-  const s = Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const s = Math.abs(n).toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
   return `${n < 0 ? "−" : ""}$${s}`;
 }
 

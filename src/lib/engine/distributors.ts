@@ -57,7 +57,8 @@ export interface DistributorInvoice {
 }
 
 export type LedgerName = "Marketing Fund" | "Product Credit";
-export type LedgerEntryType = "Fund Created" | "Goods Issued" | "Credit Memo" | "Credit Applied" | "Adjustment";
+export type LedgerEntryType =
+  "Fund Created" | "Goods Issued" | "Credit Memo" | "Credit Applied" | "Adjustment";
 
 export interface LedgerEntry {
   id: string;
@@ -90,19 +91,25 @@ export function autoFundEntries(d: Distributor, invoices: DistributorInvoice[]):
   return invoices
     .filter((i) => i.distributorId === d.id)
     .flatMap((inv) =>
-      inv.payments.flatMap((p, idx) => (p.method ?? "Cash") !== "Cash" ? [] : [{
-        id: `MF-${inv.id}-${idx}`,
-        distributorId: d.id,
-        ledger: "Marketing Fund" as const,
-        date: p.date,
-        type: "Fund Created" as const,
-        ref: `#${inv.id}`,
-        description: `Marketing Fund Allocation ${d.marketingFundPct}% of Invoice Paid ($${p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} × ${d.marketingFundPct}%)`,
-        plus: Math.round(p.amount * d.marketingFundPct) / 100,
-        minus: 0,
-        support: inv.link,
-        source: "Auto from QuickBooks payment" as const,
-      }]),
+      inv.payments.flatMap((p, idx) =>
+        (p.method ?? "Cash") !== "Cash"
+          ? []
+          : [
+              {
+                id: `MF-${inv.id}-${idx}`,
+                distributorId: d.id,
+                ledger: "Marketing Fund" as const,
+                date: p.date,
+                type: "Fund Created" as const,
+                ref: `#${inv.id}`,
+                description: `Marketing Fund Allocation ${d.marketingFundPct}% of Invoice Paid ($${p.amount.toLocaleString("en-US", { minimumFractionDigits: 2 })} × ${d.marketingFundPct}%)`,
+                plus: Math.round(p.amount * d.marketingFundPct) / 100,
+                minus: 0,
+                support: inv.link,
+                source: "Auto from QuickBooks payment" as const,
+              },
+            ],
+      ),
     );
 }
 
@@ -166,7 +173,10 @@ export function distributorPositions(
   return distributors.map((d) => {
     const inv = invoices.filter((i) => i.distributorId === d.id);
     const mine = manualEntries.filter((e) => e.distributorId === d.id);
-    const marketingFund = runLedger([...autoFundEntries(d, inv), ...mine.filter((e) => e.ledger === "Marketing Fund")]);
+    const marketingFund = runLedger([
+      ...autoFundEntries(d, inv),
+      ...mine.filter((e) => e.ledger === "Marketing Fund"),
+    ]);
     const productCredit = runLedger(mine.filter((e) => e.ledger === "Product Credit"));
     const openAR = inv.reduce((a, i) => a + Math.max(0, i.amount - invoicePaid(i)), 0);
     const ag = aging(inv, asOf);
@@ -175,7 +185,10 @@ export function distributorPositions(
     return {
       distributor: d,
       invoicedYtd: inv.filter((i) => i.date >= yearStart).reduce((a, i) => a + i.amount, 0),
-      paidYtd: inv.flatMap((i) => i.payments).filter((p) => p.date >= yearStart).reduce((a, p) => a + p.amount, 0),
+      paidYtd: inv
+        .flatMap((i) => i.payments)
+        .filter((p) => p.date >= yearStart)
+        .reduce((a, p) => a + p.amount, 0),
       openAR,
       aging: ag,
       marketingFund,
@@ -236,7 +249,8 @@ export function consignmentPosition(
   const skus = [...new Set(mine.map((m) => m.sku))].sort();
   return skus.map((sku) => {
     const rows = mine.filter((m) => m.sku === sku);
-    const total = (t: ConsignmentMovement["type"]) => rows.filter((m) => m.type === t).reduce((a, m) => a + m.qty, 0);
+    const total = (t: ConsignmentMovement["type"]) =>
+      rows.filter((m) => m.type === t).reduce((a, m) => a + m.qty, 0);
     const shipped = total("Shipment to Distributor");
     const sold = total("Reported Sale");
     const returned = total("Return to Us");
@@ -251,11 +265,17 @@ export function consignmentPosition(
       adjusted,
       onHandAtDistributor: onHand,
       soldNotInvoicedQty: uninvoiced.reduce((a, m) => a + m.qty, 0),
-      soldNotInvoicedValue: Math.round(uninvoiced.reduce((a, m) => a + saleValue(m), 0) * 100) / 100,
-      salesValue: Math.round(rows.filter((m) => m.type === "Reported Sale").reduce((a, m) => a + saleValue(m), 0) * 100) / 100,
+      soldNotInvoicedValue:
+        Math.round(uninvoiced.reduce((a, m) => a + saleValue(m), 0) * 100) / 100,
+      salesValue:
+        Math.round(
+          rows.filter((m) => m.type === "Reported Sale").reduce((a, m) => a + saleValue(m), 0) *
+            100,
+        ) / 100,
       pctSold: shipped > 0 ? sold / shipped : 0,
       stockValueAtCost: Math.round(onHand * unitCost(sku) * 100) / 100,
-      remainingValueAtPriceUsd: Math.round(onHand * (price.priceList[sku] ?? 0) * price.fxToUsd * 100) / 100,
+      remainingValueAtPriceUsd:
+        Math.round(onHand * (price.priceList[sku] ?? 0) * price.fxToUsd * 100) / 100,
     };
   });
 }

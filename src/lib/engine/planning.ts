@@ -28,7 +28,8 @@ export const RULES = {
 
 export type SalesTrend = "Accelerating" | "Stable" | "Declining";
 export type POStatusLabel = "PO Now" | "Additional PO Required" | "PO Due Soon" | "No PO Required";
-export type TransferStatus = "Transfer Required" | "Transfer Due Soon" | "No Georgia Stock" | "No Transfer Required";
+export type TransferStatus =
+  "Transfer Required" | "Transfer Due Soon" | "No Georgia Stock" | "No Transfer Required";
 export type TubeStatus = "Open Tube PO" | "No Tube PO Required";
 
 export interface MonthProjection {
@@ -177,7 +178,11 @@ function simulate(
 }
 
 /** Planned demand in days (from, to] using the per-day map. */
-function plannedBetween(map: Map<number, number>, fromExclusive: number, toInclusive: number): number {
+function plannedBetween(
+  map: Map<number, number>,
+  fromExclusive: number,
+  toInclusive: number,
+): number {
   let t = 0;
   for (const [day, qty] of map) if (day > fromExclusive && day <= toInclusive) t += qty;
   return t;
@@ -185,8 +190,12 @@ function plannedBetween(map: Map<number, number>, fromExclusive: number, toInclu
 
 export function planSku(input: PlanningInput, sku: Sku): SkuPlan {
   const { asOf } = input;
-  const brentwood = input.stock.filter((s) => s.sku === sku.sku && s.location === "Brentwood").reduce((a, s) => a + s.qty, 0);
-  const georgia = input.stock.filter((s) => s.sku === sku.sku && s.location === "Georgia").reduce((a, s) => a + s.qty, 0);
+  const brentwood = input.stock
+    .filter((s) => s.sku === sku.sku && s.location === "Brentwood")
+    .reduce((a, s) => a + s.qty, 0);
+  const georgia = input.stock
+    .filter((s) => s.sku === sku.sku && s.location === "Georgia")
+    .reduce((a, s) => a + s.qty, 0);
   const combined = brentwood + georgia;
 
   const burn7 = burnOver(input.sales, sku.sku, asOf, 7);
@@ -200,25 +209,37 @@ export function planSku(input: PlanningInput, sku: Sku): SkuPlan {
   // inside the reorder floor plus lead time at the spike rate, plan on the spike
   // rate instead of waiting for 14-day confirmation.
   const lowStockException =
-    spike && burn7 > 0 && combined / burn7 < RULES.reorderCoverDays + sku.leadTimeDays && burn7 > confirmedBurn;
+    spike &&
+    burn7 > 0 &&
+    combined / burn7 < RULES.reorderCoverDays + sku.leadTimeDays &&
+    burn7 > confirmedBurn;
   const projectionBurn = lowStockException ? burn7 : confirmedBurn;
 
   const openPOs = input.purchaseOrders.filter((p) => p.sku === sku.sku && remainingQty(p) > 0);
-  const inbound = openPOs.map((p) => ({ day: daysBetween(asOf, effectiveEta(p, asOf)), qty: remainingQty(p), eta: effectiveEta(p, asOf) }));
+  const inbound = openPOs.map((p) => ({
+    day: daysBetween(asOf, effectiveEta(p, asOf)),
+    qty: remainingQty(p),
+    eta: effectiveEta(p, asOf),
+  }));
   const openPOQty = inbound.reduce((a, i) => a + i.qty, 0);
   const nextInboundEta = inbound.map((i) => i.eta).sort()[0] ?? null;
 
   const skuPlanned = input.plannedSales.filter((p) => p.sku === sku.sku && isActivePlanned(p));
   const pastDuePlanned = skuPlanned.filter((p) => p.expectedDate < asOf);
   // Past-due active planned sales stay as demand today until reviewed (never auto-cancelled).
-  const planned = skuPlanned.map((p) => ({ day: Math.max(0, daysBetween(asOf, p.expectedDate)), qty: p.qty }));
+  const planned = skuPlanned.map((p) => ({
+    day: Math.max(0, daysBetween(asOf, p.expectedDate)),
+    qty: p.qty,
+  }));
   const activePlannedQty = skuPlanned.reduce((a, p) => a + p.qty, 0);
 
-  const simDays = RULES.horizonDays + RULES.reorderCoverDays + RULES.recommendedCoverDays + sku.leadTimeDays;
+  const simDays =
+    RULES.horizonDays + RULES.reorderCoverDays + RULES.recommendedCoverDays + sku.leadTimeDays;
   const sim = simulate(combined, projectionBurn, planned, inbound, simDays);
 
   const requirement = (d: number) =>
-    projectionBurn * RULES.reorderCoverDays + plannedBetween(sim.dailyPlanned, d, d + RULES.reorderCoverDays);
+    projectionBurn * RULES.reorderCoverDays +
+    plannedBetween(sim.dailyPlanned, d, d + RULES.reorderCoverDays);
 
   let breachDay: number | null = null;
   if (projectionBurn > 0 || activePlannedQty > 0) {
@@ -247,7 +268,8 @@ export function planSku(input: PlanningInput, sku: Sku): SkuPlan {
     const arrivalDay = Math.max(breachDay, sku.leadTimeDays);
     const stockAtArrival = sim.closing[arrivalDay] ?? 0;
     stockoutBeforeArrival = sim.closing.slice(0, arrivalDay + 1).some((v) => v < 0);
-    projectedCoverAtArrival = projectionBurn > 0 ? Math.max(0, Math.floor(stockAtArrival / projectionBurn)) : null;
+    projectedCoverAtArrival =
+      projectionBurn > 0 ? Math.max(0, Math.floor(stockAtArrival / projectionBurn)) : null;
 
     if (openByDay <= RULES.poDueSoonDays) {
       const demand180 =
@@ -263,7 +285,9 @@ export function planSku(input: PlanningInput, sku: Sku): SkuPlan {
       poStatus = openPOQty > 0 ? "Additional PO Required" : "PO Now";
       const parts = [
         `${daysOfStockLeft ?? "—"} days of stock left`,
-        breachDay === 0 ? "135-day trigger breached" : `cover falls below 135 days on day ${breachDay}, inside the ${sku.leadTimeDays}-day lead time`,
+        breachDay === 0
+          ? "135-day trigger breached"
+          : `cover falls below 135 days on day ${breachDay}, inside the ${sku.leadTimeDays}-day lead time`,
       ];
       if (openPOQty > 0) parts.push("existing open PO does not restore required cover");
       if (lowStockException) parts.push("7-day spike: low-stock exception applied");
@@ -315,7 +339,13 @@ export function planSku(input: PlanningInput, sku: Sku): SkuPlan {
 
 function monthlyProjection(asOf: string, sim: DailySim): MonthProjection[] {
   const keys = monthKeys(asOf, 12);
-  const rows: MonthProjection[] = keys.map((k) => ({ month: k, projectedBurn: 0, plannedDemand: 0, inbound: 0, closingStock: 0 }));
+  const rows: MonthProjection[] = keys.map((k) => ({
+    month: k,
+    projectedBurn: 0,
+    plannedDemand: 0,
+    inbound: 0,
+    closingStock: 0,
+  }));
   const index = new Map(keys.map((k, i) => [k, i]));
   const lastKey = keys[keys.length - 1] ?? "";
   for (let d = 0; d < sim.closing.length; d++) {
@@ -336,37 +366,71 @@ function monthlyProjection(asOf: string, sim: DailySim): MonthProjection[] {
   return rows;
 }
 
-export function planTransfer(asOf: string, brentwood: number, georgia: number, burn: number): TransferPlan {
-  if (burn <= 0) return { brentwoodDaysLeft: null, status: "No Transfer Required", minimumReferenceQty: 0, projectedFloorDate: null };
+export function planTransfer(
+  asOf: string,
+  brentwood: number,
+  georgia: number,
+  burn: number,
+): TransferPlan {
+  if (burn <= 0)
+    return {
+      brentwoodDaysLeft: null,
+      status: "No Transfer Required",
+      minimumReferenceQty: 0,
+      projectedFloorDate: null,
+    };
   const days = Math.floor(brentwood / burn);
   const daysToFloor = Math.max(0, Math.floor((brentwood - burn * RULES.transferFloorDays) / burn));
   const projectedFloorDate = addDays(asOf, daysToFloor);
-  const minimumReferenceQty = Math.min(georgia, Math.max(0, Math.ceil(burn * (RULES.transferFloorDays + 1) - brentwood)));
+  const minimumReferenceQty = Math.min(
+    georgia,
+    Math.max(0, Math.ceil(burn * (RULES.transferFloorDays + 1) - brentwood)),
+  );
   let status: TransferStatus = "No Transfer Required";
-  if (days <= RULES.transferFloorDays) status = georgia > 0 ? "Transfer Required" : "No Georgia Stock";
-  else if (days <= RULES.transferFloorDays + RULES.transferLookaheadDays && georgia > 0) status = "Transfer Due Soon";
-  return { brentwoodDaysLeft: days, status, minimumReferenceQty: status === "Transfer Required" ? minimumReferenceQty : 0, projectedFloorDate };
+  if (days <= RULES.transferFloorDays)
+    status = georgia > 0 ? "Transfer Required" : "No Georgia Stock";
+  else if (days <= RULES.transferFloorDays + RULES.transferLookaheadDays && georgia > 0)
+    status = "Transfer Due Soon";
+  return {
+    brentwoodDaysLeft: days,
+    status,
+    minimumReferenceQty: status === "Transfer Required" ? minimumReferenceQty : 0,
+    projectedFloorDate,
+  };
 }
 
 export function planTubes(input: PlanningInput, fg: SkuPlan[]): TubePlan[] {
   const { asOf } = input;
   const tubes = input.skus.filter((s) => s.type === "Empty Tube" && s.active);
   return tubes.map((t) => {
-    const linkedFg = input.skus.filter((s) => s.cogsMethod === "Tube Fill" && s.linkedTubeSku === t.sku);
+    const linkedFg = input.skus.filter(
+      (s) => s.cogsMethod === "Tube Fill" && s.linkedTubeSku === t.sku,
+    );
     const drivers = fg.filter(
-      (p) => linkedFg.some((s) => s.sku === p.sku) && p.recommendedQty > 0 && p.poStatus !== "No PO Required",
+      (p) =>
+        linkedFg.some((s) => s.sku === p.sku) &&
+        p.recommendedQty > 0 &&
+        p.poStatus !== "No PO Required",
     );
     const fgRequirement = drivers.reduce((a, p) => a + p.recommendedQty, 0);
     const requiredBy =
       drivers
-        .map((p) => addDays(p.poOpenBy && p.poOpenBy > asOf ? p.poOpenBy : asOf, RULES.tubeNeededAfterFgPoDays))
+        .map((p) =>
+          addDays(
+            p.poOpenBy && p.poOpenBy > asOf ? p.poOpenBy : asOf,
+            RULES.tubeNeededAfterFgPoDays,
+          ),
+        )
         .sort()[0] ?? null;
     const currentQty = input.stock.filter((s) => s.sku === t.sku).reduce((a, s) => a + s.qty, 0);
     const cutoff = requiredBy ?? addDays(asOf, RULES.horizonDays);
     const inboundInTime = input.purchaseOrders
       .filter((p) => p.sku === t.sku && remainingQty(p) > 0 && effectiveEta(p, asOf) <= cutoff)
       .reduce((a, p) => a + remainingQty(p), 0);
-    const calculatedQty = Math.max(0, fgRequirement + t.tubeThresholdQty - currentQty - inboundInTime);
+    const calculatedQty = Math.max(
+      0,
+      fgRequirement + t.tubeThresholdQty - currentQty - inboundInTime,
+    );
     const recommendedQty = calculatedQty > 0 ? Math.max(calculatedQty, t.moq) : 0;
     const tubeOpenBy = recommendedQty > 0 ? addDays(requiredBy ?? asOf, -t.leadTimeDays) : null;
     return {

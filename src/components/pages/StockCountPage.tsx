@@ -6,7 +6,22 @@
 
 import { useMemo, useState } from "react";
 
-import { Assume, Badge, Field, Modal, ModalActions, ModuleGate, ModuleHead, ModuleStat, Progress, Section, Source, StatusBadge, ViewOnlyBanner, useCanEdit } from "@/components/cc/ui";
+import {
+  Assume,
+  Badge,
+  Field,
+  Modal,
+  ModalActions,
+  ModuleGate,
+  ModuleHead,
+  ModuleStat,
+  Progress,
+  Section,
+  Source,
+  StatusBadge,
+  ViewOnlyBanner,
+  useCanEdit,
+} from "@/components/cc/ui";
 import { isFinance, ROLE_PERSON } from "@/lib/access";
 import {
   newCountSheet,
@@ -58,11 +73,16 @@ function StockCountInner() {
   const { unitCost } = useCosting();
   const planning = usePlanning();
 
-  const burn = useMemo(() => new Map(planning.finishedGoods.map((p) => [p.sku, p.projectionBurn])), [planning.finishedGoods]);
+  const burn = useMemo(
+    () => new Map(planning.finishedGoods.map((p) => [p.sku, p.projectionBurn])),
+    [planning.finishedGoods],
+  );
   const skuOf = (sku: string) => data.skus.find((s) => s.sku === sku);
   const masterUnits = (sku: string) => skuOf(sku)?.unitsPerBox ?? 0;
 
-  const sheets = [...data.stockCounts].sort((a, b) => b.month.localeCompare(a.month) || a.location.localeCompare(b.location));
+  const sheets = [...data.stockCounts].sort(
+    (a, b) => b.month.localeCompare(a.month) || a.location.localeCompare(b.location),
+  );
   const [selectedId, setSelectedId] = useState<string | null>(sheets[0]?.id ?? null);
   const [starting, setStarting] = useState(false);
   const [emailPreview, setEmailPreview] = useState<OutboxEmail | null>(null);
@@ -82,13 +102,19 @@ function StockCountInner() {
   const inProgress = sheets.filter((s) => s.status === "In Progress");
   const currentMonth = asOf.slice(0, 7);
 
-  const replaceSheet = (next: CountSheet) => update("stockCounts", (prev) => prev.map((s) => (s.id === next.id ? next : s)));
+  const replaceSheet = (next: CountSheet) =>
+    update("stockCounts", (prev) => prev.map((s) => (s.id === next.id ? next : s)));
 
   const startSheet = (month: string, location: Location) => {
     const skus = data.skus
       .filter((s) => s.active && (s.type === "Finished Goods" || s.type === "Accessory"))
       .map((s) => ({ sku: s.sku, unitsPerBox: s.unitsPerBox, burnPerDay: burn.get(s.sku) ?? 0 }));
-    const sheet = newCountSheet(`CS-${month}-${location === "Brentwood" ? "BW" : "GA"}`, month, location, skus);
+    const sheet = newCountSheet(
+      `CS-${month}-${location === "Brentwood" ? "BW" : "GA"}`,
+      month,
+      location,
+      skus,
+    );
     update("stockCounts", (prev) => [...prev, sheet]);
     setSelectedId(sheet.id);
     setStarting(false);
@@ -99,14 +125,24 @@ function StockCountInner() {
     const sent: CountSheet = { ...s, status: "Sent to Finance", sentAt: `${asOf}T${nowTime()}` };
     replaceSheet(sent);
     const email = varianceEmail(sent, variancesOf(sent), FINANCE_EMAIL);
-    const queued: OutboxEmail = { id: newId("MAIL"), ...email, queuedAt: `${asOf}T${nowTime()}`, status: "Queued (Gmail not connected yet)" };
+    const queued: OutboxEmail = {
+      id: newId("MAIL"),
+      ...email,
+      queuedAt: `${asOf}T${nowTime()}`,
+      status: "Queued (Gmail not connected yet)",
+    };
     update("outbox", (prev) => [...prev, queued]);
     setEmailPreview(queued);
     flash(`${monthLabel(s.month)} ${s.location} count sent to Finance`);
   };
 
   const markAdjusted = (s: CountSheet) => {
-    replaceSheet({ ...s, status: "Adjusted in ShipStation", adjustedBy: role, adjustedAt: `${asOf}T${nowTime()}` });
+    replaceSheet({
+      ...s,
+      status: "Adjusted in ShipStation",
+      adjustedBy: role,
+      adjustedAt: `${asOf}T${nowTime()}`,
+    });
     flash("Marked as adjusted in ShipStation");
   };
 
@@ -115,7 +151,10 @@ function StockCountInner() {
 
   return (
     <section className="screen active" id="screen-stock-count">
-      <ModuleHead title="Stock Count" subtitle="Monthly physical count vs ShipStation — differences go to Finance to adjust in ShipStation">
+      <ModuleHead
+        title="Stock Count"
+        subtitle="Monthly physical count vs ShipStation — differences go to Finance to adjust in ShipStation"
+      >
         {canEdit ? (
           <button className="btn primary" type="button" onClick={() => setStarting(true)}>
             + Start {monthLabel(currentMonth)} count sheet
@@ -123,28 +162,59 @@ function StockCountInner() {
         ) : null}
       </ModuleHead>
 
-      <ViewOnlyBanner id="stock-count" text="View only for this role. The warehouse team records counts; Finance adjusts ShipStation." />
+      <ViewOnlyBanner
+        id="stock-count"
+        text="View only for this role. The warehouse team records counts; Finance adjusts ShipStation."
+      />
 
       <div className="module-stats stat-strip">
         <ModuleStat
           label="Current sheet progress"
-          value={selected ? `${sheetProgress(selected).counted} / ${sheetProgress(selected).total}` : "—"}
-          note={selected ? `${monthLabel(selected.month)} · ${selected.location}` : "No sheet selected"}
+          value={
+            selected ? `${sheetProgress(selected).counted} / ${sheetProgress(selected).total}` : "—"
+          }
+          note={
+            selected ? `${monthLabel(selected.month)} · ${selected.location}` : "No sheet selected"
+          }
         />
-        <ModuleStat label="Sheets in progress" value={inProgress.length} note="Counting over several days" />
-        <ModuleStat label="Waiting for Finance" value={waiting.length} note="Sent, ShipStation not yet adjusted" />
+        <ModuleStat
+          label="Sheets in progress"
+          value={inProgress.length}
+          note="Counting over several days"
+        />
+        <ModuleStat
+          label="Waiting for Finance"
+          value={waiting.length}
+          note="Sent, ShipStation not yet adjusted"
+        />
         {seesValue && selected ? (
           <ModuleStat
             label="Net difference · selected sheet"
-            value={<span className={totals(selected).value < 0 ? "neg" : totals(selected).value > 0 ? "pos" : ""}>{money(totals(selected).value)}</span>}
+            value={
+              <span
+                className={
+                  totals(selected).value < 0 ? "neg" : totals(selected).value > 0 ? "pos" : ""
+                }
+              >
+                {money(totals(selected).value)}
+              </span>
+            }
             note={`${signed(totals(selected).units)} units at current full COGS`}
           />
         ) : (
-          <ModuleStat label="Lines to review" value={selected ? totals(selected).review : 0} note="≥2% difference or units/box check" />
+          <ModuleStat
+            label="Lines to review"
+            value={selected ? totals(selected).review : 0}
+            note="≥2% difference or units/box check"
+          />
         )}
       </div>
 
-      <Section title="Count sheets" kicker="HISTORY" hint={<Source>ShipStation quantity captured at count time</Source>}>
+      <Section
+        title="Count sheets"
+        kicker="HISTORY"
+        hint={<Source>ShipStation quantity captured at count time</Source>}
+      >
         <div className="table-wrap">
           <table className="compact" style={{ minWidth: 720 }}>
             <thead>
@@ -162,18 +232,35 @@ function StockCountInner() {
                 const p = sheetProgress(s);
                 const t = totals(s);
                 return (
-                  <tr key={s.id} className={`click-row${s.id === selectedId ? " selected-row" : ""}`} onClick={() => setSelectedId(s.id)}>
-                    <td><strong>WH Stock Count {monthLabel(s.month)}</strong></td>
+                  <tr
+                    key={s.id}
+                    className={`click-row${s.id === selectedId ? " selected-row" : ""}`}
+                    onClick={() => setSelectedId(s.id)}
+                  >
+                    <td>
+                      <strong>WH Stock Count {monthLabel(s.month)}</strong>
+                    </td>
                     <td>{s.location}</td>
                     <td>
                       <div className="row" style={{ flexWrap: "nowrap" }}>
-                        <Progress value={p.pct} {...(p.pct >= 1 ? { tone: "good" as const } : {})} />
-                        <span className="small nowrap">{p.counted}/{p.total}</span>
+                        <Progress
+                          value={p.pct}
+                          {...(p.pct >= 1 ? { tone: "good" as const } : {})}
+                        />
+                        <span className="small nowrap">
+                          {p.counted}/{p.total}
+                        </span>
                       </div>
                     </td>
                     <td className="num">{t.review}</td>
-                    {seesValue ? <td className={`num ${t.value < 0 ? "neg" : t.value > 0 ? "pos" : ""}`}>{money(t.value)}</td> : null}
-                    <td><StatusBadge status={s.status} /></td>
+                    {seesValue ? (
+                      <td className={`num ${t.value < 0 ? "neg" : t.value > 0 ? "pos" : ""}`}>
+                        {money(t.value)}
+                      </td>
+                    ) : null}
+                    <td>
+                      <StatusBadge status={s.status} />
+                    </td>
                   </tr>
                 );
               })}
@@ -197,16 +284,24 @@ function StockCountInner() {
           burn={(sku) => burn.get(sku) ?? 0}
           onChange={replaceSheet}
           captureSystemQty={(sku) =>
-            data.finishedGoodsStock.filter((p) => p.sku === sku && p.location === selected.location).reduce((a, p) => a + p.qty, 0)
+            data.finishedGoodsStock
+              .filter((p) => p.sku === sku && p.location === selected.location)
+              .reduce((a, p) => a + p.qty, 0)
           }
-          counterName={ROLE_PERSON[role] ? data.employees.find((e) => e.id === ROLE_PERSON[role])?.name ?? role : role}
+          counterName={
+            ROLE_PERSON[role]
+              ? (data.employees.find((e) => e.id === ROLE_PERSON[role])?.name ?? role)
+              : role
+          }
           asOf={asOf}
           onSend={() => sendToFinance(selected)}
           onAdjusted={() => markAdjusted(selected)}
           onShowEmail={setEmailPreview}
         />
       ) : (
-        <div className="card empty mt">No count sheet yet. Start this month's sheet to begin counting.</div>
+        <div className="card empty mt">
+          No count sheet yet. Start this month's sheet to begin counting.
+        </div>
       )}
 
       <StartSheetModal
@@ -217,17 +312,34 @@ function StockCountInner() {
         onStart={startSheet}
       />
 
-      <Modal open={emailPreview !== null} title="Email to Finance" onClose={() => setEmailPreview(null)} width={640}>
+      <Modal
+        open={emailPreview !== null}
+        title="Email to Finance"
+        onClose={() => setEmailPreview(null)}
+        width={640}
+      >
         {emailPreview ? (
           <>
             <div className="notice">
-              Queued in the outbox · {emailPreview.status}. It sends automatically once the Gmail connector is set up.
+              Queued in the outbox · {emailPreview.status}. It sends automatically once the Gmail
+              connector is set up.
             </div>
-            <div className="summary-line"><span>To</span><strong>{emailPreview.to}</strong></div>
-            <div className="summary-line"><span>Subject</span><strong>{emailPreview.subject}</strong></div>
+            <div className="summary-line">
+              <span>To</span>
+              <strong>{emailPreview.to}</strong>
+            </div>
+            <div className="summary-line">
+              <span>Subject</span>
+              <strong>{emailPreview.subject}</strong>
+            </div>
             <div className="email-preview mt">{emailPreview.body}</div>
-            <div className="toolbar" style={{ justifyContent: "flex-end", marginTop: 16, marginBottom: 0 }}>
-              <button className="btn primary" type="button" onClick={() => setEmailPreview(null)}>Done</button>
+            <div
+              className="toolbar"
+              style={{ justifyContent: "flex-end", marginTop: 16, marginBottom: 0 }}
+            >
+              <button className="btn primary" type="button" onClick={() => setEmailPreview(null)}>
+                Done
+              </button>
             </div>
           </>
         ) : null}
@@ -293,13 +405,19 @@ function SheetGrid(p: GridProps) {
         <span className="row">
           <StatusBadge status={sheet.status} />
           {sheet.sentAt ? <span className="small">Sent {fmtDateTime(sheet.sentAt)}</span> : null}
-          {sheet.adjustedAt ? <span className="small">Adjusted by {sheet.adjustedBy} · {fmtDateTime(sheet.adjustedAt)}</span> : null}
+          {sheet.adjustedAt ? (
+            <span className="small">
+              Adjusted by {sheet.adjustedBy} · {fmtDateTime(sheet.adjustedAt)}
+            </span>
+          ) : null}
         </span>
       }
     >
       {p.editable ? (
         <div className="notice">
-          Enter boxes × units/box and/or loose units for each SKU as you count it. Date &amp; time and the ShipStation quantity are captured when you enter the first quantity — you can count different SKUs on different days.
+          Enter boxes × units/box and/or loose units for each SKU as you count it. Date &amp; time
+          and the ShipStation quantity are captured when you enter the first quantity — you can
+          count different SKUs on different days.
         </div>
       ) : null}
 
@@ -315,7 +433,12 @@ function SheetGrid(p: GridProps) {
               <th className="num">Units / box</th>
               <th className="num">Loose units</th>
               <th className="num">Physical count</th>
-              <th className="num">ShipStation qty <Assume title="Live version reads ShipStation's quantity at the count date & time. The prototype uses today's stock.">at count time</Assume></th>
+              <th className="num">
+                ShipStation qty{" "}
+                <Assume title="Live version reads ShipStation's quantity at the count date & time. The prototype uses today's stock.">
+                  at count time
+                </Assume>
+              </th>
               <th className="num">Difference</th>
               {p.seesValue ? <th className="num">Value</th> : null}
               <th className="num">Avg burn / day</th>
@@ -326,7 +449,9 @@ function SheetGrid(p: GridProps) {
             {lines.map((l, i) => (
               <tr key={l.sku}>
                 <td>{i + 1}</td>
-                <td><strong>{l.sku}</strong></td>
+                <td>
+                  <strong>{l.sku}</strong>
+                </td>
                 <td>{p.description(l.sku)}</td>
                 <td className="nowrap">
                   {p.editable ? (
@@ -335,7 +460,9 @@ function SheetGrid(p: GridProps) {
                       type="datetime-local"
                       value={l.countedAt ?? ""}
                       disabled={l.boxes === null && l.looseUnits === null}
-                      onChange={(e) => patchLine(i, { countedAt: e.target.value === "" ? null : e.target.value })}
+                      onChange={(e) =>
+                        patchLine(i, { countedAt: e.target.value === "" ? null : e.target.value })
+                      }
                       style={{ minHeight: 32, padding: "4px 6px" }}
                     />
                   ) : (
@@ -345,31 +472,63 @@ function SheetGrid(p: GridProps) {
                 </td>
                 <td className="num">
                   {p.editable ? (
-                    <NumInput value={l.boxes} disabled={l.unitsPerBox === 0} onChange={(v) => patchLine(i, { boxes: v })} />
-                  ) : l.boxes === null ? "—" : int(l.boxes)}
+                    <NumInput
+                      value={l.boxes}
+                      disabled={l.unitsPerBox === 0}
+                      onChange={(v) => patchLine(i, { boxes: v })}
+                    />
+                  ) : l.boxes === null ? (
+                    "—"
+                  ) : (
+                    int(l.boxes)
+                  )}
                 </td>
                 <td className="num">
                   {p.editable ? (
-                    <NumInput value={l.unitsPerBox} onChange={(v) => patchLine(i, { unitsPerBox: v ?? 0 })} />
-                  ) : l.unitsPerBox === 0 ? "Loose" : int(l.unitsPerBox)}
+                    <NumInput
+                      value={l.unitsPerBox}
+                      onChange={(v) => patchLine(i, { unitsPerBox: v ?? 0 })}
+                    />
+                  ) : l.unitsPerBox === 0 ? (
+                    "Loose"
+                  ) : (
+                    int(l.unitsPerBox)
+                  )}
                 </td>
                 <td className="num">
                   {p.editable ? (
-                    <NumInput value={l.looseUnits} onChange={(v) => patchLine(i, { looseUnits: v })} />
-                  ) : l.looseUnits === null ? "—" : int(l.looseUnits)}
+                    <NumInput
+                      value={l.looseUnits}
+                      onChange={(v) => patchLine(i, { looseUnits: v })}
+                    />
+                  ) : l.looseUnits === null ? (
+                    "—"
+                  ) : (
+                    int(l.looseUnits)
+                  )}
                 </td>
-                <td className="num"><strong>{l.counted === null ? "—" : int(l.counted)}</strong></td>
+                <td className="num">
+                  <strong>{l.counted === null ? "—" : int(l.counted)}</strong>
+                </td>
                 <td className="num">{l.systemQty === null ? "—" : int(l.systemQty)}</td>
-                <td className={`num ${l.variance === null ? "" : l.variance < 0 ? "neg" : l.variance > 0 ? "pos" : ""}`}>
-                  {l.variance === null ? "—" : (
+                <td
+                  className={`num ${l.variance === null ? "" : l.variance < 0 ? "neg" : l.variance > 0 ? "pos" : ""}`}
+                >
+                  {l.variance === null ? (
+                    "—"
+                  ) : (
                     <>
                       <strong>{signed(l.variance)}</strong>
-                      {l.variancePct !== null && l.variance !== 0 ? <div className="small">{pct(l.variancePct)}</div> : null}
+                      {l.variancePct !== null && l.variance !== 0 ? (
+                        <div className="small">{pct(l.variancePct)}</div>
+                      ) : null}
                     </>
                   )}
                 </td>
                 {p.seesValue ? (
-                  <td className={`num ${(l.valueImpact ?? 0) < 0 ? "neg" : (l.valueImpact ?? 0) > 0 ? "pos" : ""}`}>
+                  <td
+                    className={`num ${(l.valueImpact ?? 0) < 0 ? "neg" : (l.valueImpact ?? 0) > 0 ? "pos" : ""}`}
+                  >
                     {l.valueImpact === null ? "—" : money(l.valueImpact)}
                   </td>
                 ) : null}
@@ -383,15 +542,23 @@ function SheetGrid(p: GridProps) {
                       </span>
                     ) : null}
                     {l.needsReview ? <Badge tone="amber">Review ≥2%</Badge> : null}
-                    {l.counted !== null && l.variance === 0 ? <Badge tone="green">Matches</Badge> : null}
+                    {l.counted !== null && l.variance === 0 ? (
+                      <Badge tone="green">Matches</Badge>
+                    ) : null}
                   </div>
                 </td>
               </tr>
             ))}
             <tr className="total-row">
               <td colSpan={9}>Total difference on counted lines</td>
-              <td className={`num ${totalUnits < 0 ? "neg" : totalUnits > 0 ? "pos" : ""}`}>{signed(totalUnits)}</td>
-              {p.seesValue ? <td className={`num ${totalValue < 0 ? "neg" : totalValue > 0 ? "pos" : ""}`}>{money(totalValue)}</td> : null}
+              <td className={`num ${totalUnits < 0 ? "neg" : totalUnits > 0 ? "pos" : ""}`}>
+                {signed(totalUnits)}
+              </td>
+              {p.seesValue ? (
+                <td className={`num ${totalValue < 0 ? "neg" : totalValue > 0 ? "pos" : ""}`}>
+                  {money(totalValue)}
+                </td>
+              ) : null}
               <td colSpan={2} />
             </tr>
           </tbody>
@@ -401,22 +568,37 @@ function SheetGrid(p: GridProps) {
       <div className="grid-2 mt">
         <Field label="Warehouse notes">
           {p.editable ? (
-            <textarea value={sheet.notes} onChange={(e) => p.onChange({ ...sheet, notes: e.target.value })} placeholder="e.g. 2 cases found crushed on rack B4" />
+            <textarea
+              value={sheet.notes}
+              onChange={(e) => p.onChange({ ...sheet, notes: e.target.value })}
+              placeholder="e.g. 2 cases found crushed on rack B4"
+            />
           ) : (
-            <div className="notice" style={{ marginBottom: 0 }}>{sheet.notes || "No notes."}</div>
+            <div className="notice" style={{ marginBottom: 0 }}>
+              {sheet.notes || "No notes."}
+            </div>
           )}
         </Field>
         <div className="row" style={{ justifyContent: "flex-end", alignItems: "flex-end" }}>
           {p.email ? (
-            <button className="btn" type="button" onClick={() => p.email && p.onShowEmail(p.email)}>View email to Finance</button>
+            <button className="btn" type="button" onClick={() => p.email && p.onShowEmail(p.email)}>
+              View email to Finance
+            </button>
           ) : null}
           {p.canSend ? (
-            <button className="btn primary" type="button" disabled={progress.counted === 0} onClick={p.onSend}>
+            <button
+              className="btn primary"
+              type="button"
+              disabled={progress.counted === 0}
+              onClick={p.onSend}
+            >
               Send to Finance ({progress.counted} counted)
             </button>
           ) : null}
           {p.canAdjust ? (
-            <button className="btn blue" type="button" onClick={p.onAdjusted}>Mark adjusted in ShipStation</button>
+            <button className="btn blue" type="button" onClick={p.onAdjusted}>
+              Mark adjusted in ShipStation
+            </button>
           ) : null}
         </div>
       </div>
@@ -424,7 +606,15 @@ function SheetGrid(p: GridProps) {
   );
 }
 
-function NumInput({ value, onChange, disabled }: { value: number | null; onChange: (v: number | null) => void; disabled?: boolean }) {
+function NumInput({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  disabled?: boolean;
+}) {
   return (
     <input
       className="control num"
@@ -473,7 +663,10 @@ function StartSheetModal({
             </select>
           </Field>
         </div>
-        <div className={`notice${duplicate ? " readonly" : ""}`} style={{ marginTop: 12, marginBottom: 0 }}>
+        <div
+          className={`notice${duplicate ? " readonly" : ""}`}
+          style={{ marginTop: 12, marginBottom: 0 }}
+        >
           {duplicate
             ? `A ${location} sheet for ${monthLabel(month)} already exists — open it from the history list.`
             : "All active Finished Goods and Accessory SKUs are listed, fastest burn first, with units/box from SKU / MOQ Setup."}

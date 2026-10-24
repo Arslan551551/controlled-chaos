@@ -102,16 +102,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>(initialData);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const update = useCallback(<K extends keyof AppData>(key: K, fn: (prev: AppData[K]) => AppData[K]) => {
-    setData((d) => ({ ...d, [key]: fn(d[key]) }));
-  }, []);
+  const update = useCallback(
+    <K extends keyof AppData>(key: K, fn: (prev: AppData[K]) => AppData[K]) => {
+      setData((d) => ({ ...d, [key]: fn(d[key]) }));
+    },
+    [],
+  );
 
   const flash = useCallback((msg: string) => {
     setNotice(msg);
     window.setTimeout(() => setNotice((m) => (m === msg ? null : m)), 2200);
   }, []);
 
-  const value = useMemo(() => ({ role, setRole, data, update, notice, flash, asOf: core.AS_OF }), [role, data, update, notice, flash]);
+  const value = useMemo(
+    () => ({ role, setRole, data, update, notice, flash, asOf: core.AS_OF }),
+    [role, data, update, notice, flash],
+  );
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
@@ -159,7 +165,15 @@ export function usePlanning() {
         plannedSales: data.plannedSales,
         purchaseOrders: data.purchaseOrders,
       }),
-    [asOf, data.skus, data.finishedGoodsStock, tubeStock, data.actualSales, data.plannedSales, data.purchaseOrders],
+    [
+      asOf,
+      data.skus,
+      data.finishedGoodsStock,
+      tubeStock,
+      data.actualSales,
+      data.plannedSales,
+      data.purchaseOrders,
+    ],
   );
 }
 

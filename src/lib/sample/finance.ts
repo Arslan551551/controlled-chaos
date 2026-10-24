@@ -3,35 +3,263 @@
 // marketing ad metrics. Illustrative numbers only.
 
 import type { AdMetric } from "../engine/marketing.ts";
-import type { BankAccount, CashReceipt, ChannelCosts, ChannelSales, Expense, NonPOPayment, Vendor } from "../engine/finance.ts";
+import type {
+  BankAccount,
+  CashReceipt,
+  ChannelCosts,
+  ChannelSales,
+  Expense,
+  NonPOPayment,
+  Vendor,
+} from "../engine/finance.ts";
 import type { SalesChannel } from "../engine/types.ts";
 
 export const vendors: Vendor[] = [
-  { id: "V-BL", name: "Beauty Labs", category: "PO Supplier", paymentTerms: "40% deposit · 40% on fill · 20% net 30", currency: "USD", contact: "Mark Ellis", email: "orders@beautylabs.example", maintainedBy: "Supply Chain", status: "Active" },
-  { id: "V-PF", name: "Prime Fill", category: "PO Supplier", paymentTerms: "50% deposit · 50% on shipment", currency: "USD", contact: "Dana Ortiz", email: "ap@primefill.example", maintainedBy: "Supply Chain", status: "Active" },
-  { id: "V-CP", name: "China Pack", category: "Packaging", paymentTerms: "50% deposit · 50% before shipment", currency: "USD", contact: "Lily Chen", email: "sales@chinapack.example", maintainedBy: "Supply Chain", status: "Active" },
-  { id: "V-AC", name: "Sample Accessory Co", category: "PO Supplier", paymentTerms: "Net 30", currency: "USD", contact: "Sam Patel", email: "sam@accessory.example", maintainedBy: "Supply Chain", status: "Active" },
-  { id: "V-GA", name: "Georgia Prep Warehouse", category: "Logistics", paymentTerms: "Monthly invoice · net 15", currency: "USD", contact: "Ops Desk", email: "billing@gaprep.example", maintainedBy: "Finance", status: "Active" },
-  { id: "V-FR", name: "FreightLink", category: "Logistics", paymentTerms: "Net 15", currency: "USD", contact: "Kevin Brooks", email: "ar@freightlink.example", maintainedBy: "Supply Chain", status: "Active" },
-  { id: "V-AG", name: "Brightside Creative Agency", category: "Marketing", paymentTerms: "Monthly retainer · net 10", currency: "USD", contact: "Priya Rao", email: "billing@brightside.example", maintainedBy: "Finance", status: "Active" },
-  { id: "V-LL", name: "Brentwood Property LLC", category: "Facilities", paymentTerms: "1st of month", currency: "USD", contact: "Leasing Office", email: "rent@brentwoodprop.example", maintainedBy: "Finance", status: "Active" },
-  { id: "V-CPA", name: "Hart & Co CPAs", category: "Professional Services", paymentTerms: "Net 30", currency: "USD", contact: "Ruth Hart", email: "ruth@hartcpa.example", maintainedBy: "Finance", status: "Active" },
-  { id: "V-INS", name: "Shield Business Insurance", category: "Other", paymentTerms: "Quarterly", currency: "USD", contact: "Policy Desk", email: "service@shield.example", maintainedBy: "Finance", status: "Active" },
+  {
+    id: "V-BL",
+    name: "Beauty Labs",
+    category: "PO Supplier",
+    paymentTerms: "40% deposit · 40% on fill · 20% net 30",
+    currency: "USD",
+    contact: "Mark Ellis",
+    email: "orders@beautylabs.example",
+    maintainedBy: "Supply Chain",
+    status: "Active",
+  },
+  {
+    id: "V-PF",
+    name: "Prime Fill",
+    category: "PO Supplier",
+    paymentTerms: "50% deposit · 50% on shipment",
+    currency: "USD",
+    contact: "Dana Ortiz",
+    email: "ap@primefill.example",
+    maintainedBy: "Supply Chain",
+    status: "Active",
+  },
+  {
+    id: "V-CP",
+    name: "China Pack",
+    category: "Packaging",
+    paymentTerms: "50% deposit · 50% before shipment",
+    currency: "USD",
+    contact: "Lily Chen",
+    email: "sales@chinapack.example",
+    maintainedBy: "Supply Chain",
+    status: "Active",
+  },
+  {
+    id: "V-AC",
+    name: "Sample Accessory Co",
+    category: "PO Supplier",
+    paymentTerms: "Net 30",
+    currency: "USD",
+    contact: "Sam Patel",
+    email: "sam@accessory.example",
+    maintainedBy: "Supply Chain",
+    status: "Active",
+  },
+  {
+    id: "V-GA",
+    name: "Georgia Prep Warehouse",
+    category: "Logistics",
+    paymentTerms: "Monthly invoice · net 15",
+    currency: "USD",
+    contact: "Ops Desk",
+    email: "billing@gaprep.example",
+    maintainedBy: "Finance",
+    status: "Active",
+  },
+  {
+    id: "V-FR",
+    name: "FreightLink",
+    category: "Logistics",
+    paymentTerms: "Net 15",
+    currency: "USD",
+    contact: "Kevin Brooks",
+    email: "ar@freightlink.example",
+    maintainedBy: "Supply Chain",
+    status: "Active",
+  },
+  {
+    id: "V-AG",
+    name: "Brightside Creative Agency",
+    category: "Marketing",
+    paymentTerms: "Monthly retainer · net 10",
+    currency: "USD",
+    contact: "Priya Rao",
+    email: "billing@brightside.example",
+    maintainedBy: "Finance",
+    status: "Active",
+  },
+  {
+    id: "V-LL",
+    name: "Brentwood Property LLC",
+    category: "Facilities",
+    paymentTerms: "1st of month",
+    currency: "USD",
+    contact: "Leasing Office",
+    email: "rent@brentwoodprop.example",
+    maintainedBy: "Finance",
+    status: "Active",
+  },
+  {
+    id: "V-CPA",
+    name: "Hart & Co CPAs",
+    category: "Professional Services",
+    paymentTerms: "Net 30",
+    currency: "USD",
+    contact: "Ruth Hart",
+    email: "ruth@hartcpa.example",
+    maintainedBy: "Finance",
+    status: "Active",
+  },
+  {
+    id: "V-INS",
+    name: "Shield Business Insurance",
+    category: "Other",
+    paymentTerms: "Quarterly",
+    currency: "USD",
+    contact: "Policy Desk",
+    email: "service@shield.example",
+    maintainedBy: "Finance",
+    status: "Active",
+  },
 ];
 
 export const nonPOPayments: NonPOPayment[] = [
-  { id: "NP-101", vendorId: "V-LL", category: "Rent", description: "Brentwood warehouse rent – Nov", amount: 14500, dueDate: "2026-11-01", status: "Approved", enteredBy: "Finance", recurring: "Monthly" },
-  { id: "NP-102", vendorId: "V-LL", category: "Rent", description: "Brentwood warehouse rent – Dec", amount: 14500, dueDate: "2026-12-01", status: "Planned", enteredBy: "Finance", recurring: "Monthly" },
-  { id: "NP-103", vendorId: "V-LL", category: "Rent", description: "Brentwood warehouse rent – Jan", amount: 14500, dueDate: "2027-01-01", status: "Planned", enteredBy: "Finance", recurring: "Monthly" },
-  { id: "NP-104", vendorId: "V-GA", category: "3PL / Storage", description: "Georgia storage & prep – Oct", amount: 8200, dueDate: "2026-11-15", status: "Planned", enteredBy: "Finance", recurring: "Monthly" },
-  { id: "NP-105", vendorId: "V-GA", category: "3PL / Storage", description: "Georgia storage & prep – Nov", amount: 8400, dueDate: "2026-12-15", status: "Planned", enteredBy: "Finance", recurring: "Monthly" },
-  { id: "NP-106", vendorId: "V-FR", category: "Freight", description: "Inbound freight PO-1024 / PO-1030", amount: 6800, dueDate: "2026-11-20", status: "Planned", enteredBy: "Supply Chain", recurring: "None" },
-  { id: "NP-107", vendorId: "V-FR", category: "Freight", description: "Ocean freight tubes PO-1027", amount: 4300, dueDate: "2026-10-29", status: "Approved", enteredBy: "Supply Chain", recurring: "None" },
-  { id: "NP-108", vendorId: "V-AG", category: "Marketing", description: "Creative retainer – Nov", amount: 9000, dueDate: "2026-11-10", status: "Approved", enteredBy: "Finance", recurring: "Monthly" },
-  { id: "NP-109", vendorId: "V-AG", category: "Marketing", description: "Creative retainer – Dec", amount: 9000, dueDate: "2026-12-10", status: "Planned", enteredBy: "Finance", recurring: "Monthly" },
-  { id: "NP-110", vendorId: "V-CPA", category: "Professional Fees", description: "Q3 bookkeeping & tax review", amount: 5200, dueDate: "2026-11-25", status: "Planned", enteredBy: "Finance", recurring: "None" },
-  { id: "NP-111", vendorId: "V-INS", category: "Insurance", description: "Product liability – Q1 premium", amount: 7600, dueDate: "2027-01-05", status: "Planned", enteredBy: "Finance", recurring: "Quarterly" },
-  { id: "NP-112", vendorId: "V-CP", category: "Packaging", description: "Shipper cartons & inserts", amount: 3100, dueDate: null, status: "Planned", enteredBy: "Supply Chain", recurring: "None" },
+  {
+    id: "NP-101",
+    vendorId: "V-LL",
+    category: "Rent",
+    description: "Brentwood warehouse rent – Nov",
+    amount: 14500,
+    dueDate: "2026-11-01",
+    status: "Approved",
+    enteredBy: "Finance",
+    recurring: "Monthly",
+  },
+  {
+    id: "NP-102",
+    vendorId: "V-LL",
+    category: "Rent",
+    description: "Brentwood warehouse rent – Dec",
+    amount: 14500,
+    dueDate: "2026-12-01",
+    status: "Planned",
+    enteredBy: "Finance",
+    recurring: "Monthly",
+  },
+  {
+    id: "NP-103",
+    vendorId: "V-LL",
+    category: "Rent",
+    description: "Brentwood warehouse rent – Jan",
+    amount: 14500,
+    dueDate: "2027-01-01",
+    status: "Planned",
+    enteredBy: "Finance",
+    recurring: "Monthly",
+  },
+  {
+    id: "NP-104",
+    vendorId: "V-GA",
+    category: "3PL / Storage",
+    description: "Georgia storage & prep – Oct",
+    amount: 8200,
+    dueDate: "2026-11-15",
+    status: "Planned",
+    enteredBy: "Finance",
+    recurring: "Monthly",
+  },
+  {
+    id: "NP-105",
+    vendorId: "V-GA",
+    category: "3PL / Storage",
+    description: "Georgia storage & prep – Nov",
+    amount: 8400,
+    dueDate: "2026-12-15",
+    status: "Planned",
+    enteredBy: "Finance",
+    recurring: "Monthly",
+  },
+  {
+    id: "NP-106",
+    vendorId: "V-FR",
+    category: "Freight",
+    description: "Inbound freight PO-1024 / PO-1030",
+    amount: 6800,
+    dueDate: "2026-11-20",
+    status: "Planned",
+    enteredBy: "Supply Chain",
+    recurring: "None",
+  },
+  {
+    id: "NP-107",
+    vendorId: "V-FR",
+    category: "Freight",
+    description: "Ocean freight tubes PO-1027",
+    amount: 4300,
+    dueDate: "2026-10-29",
+    status: "Approved",
+    enteredBy: "Supply Chain",
+    recurring: "None",
+  },
+  {
+    id: "NP-108",
+    vendorId: "V-AG",
+    category: "Marketing",
+    description: "Creative retainer – Nov",
+    amount: 9000,
+    dueDate: "2026-11-10",
+    status: "Approved",
+    enteredBy: "Finance",
+    recurring: "Monthly",
+  },
+  {
+    id: "NP-109",
+    vendorId: "V-AG",
+    category: "Marketing",
+    description: "Creative retainer – Dec",
+    amount: 9000,
+    dueDate: "2026-12-10",
+    status: "Planned",
+    enteredBy: "Finance",
+    recurring: "Monthly",
+  },
+  {
+    id: "NP-110",
+    vendorId: "V-CPA",
+    category: "Professional Fees",
+    description: "Q3 bookkeeping & tax review",
+    amount: 5200,
+    dueDate: "2026-11-25",
+    status: "Planned",
+    enteredBy: "Finance",
+    recurring: "None",
+  },
+  {
+    id: "NP-111",
+    vendorId: "V-INS",
+    category: "Insurance",
+    description: "Product liability – Q1 premium",
+    amount: 7600,
+    dueDate: "2027-01-05",
+    status: "Planned",
+    enteredBy: "Finance",
+    recurring: "Quarterly",
+  },
+  {
+    id: "NP-112",
+    vendorId: "V-CP",
+    category: "Packaging",
+    description: "Shipper cartons & inserts",
+    amount: 3100,
+    dueDate: null,
+    status: "Planned",
+    enteredBy: "Supply Chain",
+    recurring: "None",
+  },
 ];
 
 export const bankAccounts: BankAccount[] = [
@@ -42,19 +270,78 @@ export const bankAccounts: BankAccount[] = [
 
 /** Payroll, loans and tax are entered by Director Finance (or come from QuickBooks recurring transactions). */
 export const manualCashLines = [
-  { date: "2026-10-31", direction: "out" as const, category: "Payroll" as const, description: "Payroll 16–31 Oct", amount: 61000 },
-  { date: "2026-11-15", direction: "out" as const, category: "Payroll" as const, description: "Payroll 1–15 Nov", amount: 61000 },
-  { date: "2026-11-30", direction: "out" as const, category: "Payroll" as const, description: "Payroll 16–30 Nov", amount: 61000 },
-  { date: "2026-12-15", direction: "out" as const, category: "Payroll" as const, description: "Payroll 1–15 Dec", amount: 61000 },
-  { date: "2026-12-31", direction: "out" as const, category: "Payroll" as const, description: "Payroll 16–31 Dec + bonus", amount: 78000 },
-  { date: "2026-11-12", direction: "in" as const, category: "Loan Receipt" as const, description: "Line of credit drawdown", amount: 120000 },
-  { date: "2026-11-05", direction: "out" as const, category: "Loan Repayment" as const, description: "Term loan instalment", amount: 6500 },
-  { date: "2026-12-05", direction: "out" as const, category: "Loan Repayment" as const, description: "Term loan instalment", amount: 6500 },
-  { date: "2026-12-15", direction: "out" as const, category: "Tax" as const, description: "Estimated tax – Q4", amount: 22000 },
+  {
+    date: "2026-10-31",
+    direction: "out" as const,
+    category: "Payroll" as const,
+    description: "Payroll 16–31 Oct",
+    amount: 61000,
+  },
+  {
+    date: "2026-11-15",
+    direction: "out" as const,
+    category: "Payroll" as const,
+    description: "Payroll 1–15 Nov",
+    amount: 61000,
+  },
+  {
+    date: "2026-11-30",
+    direction: "out" as const,
+    category: "Payroll" as const,
+    description: "Payroll 16–30 Nov",
+    amount: 61000,
+  },
+  {
+    date: "2026-12-15",
+    direction: "out" as const,
+    category: "Payroll" as const,
+    description: "Payroll 1–15 Dec",
+    amount: 61000,
+  },
+  {
+    date: "2026-12-31",
+    direction: "out" as const,
+    category: "Payroll" as const,
+    description: "Payroll 16–31 Dec + bonus",
+    amount: 78000,
+  },
+  {
+    date: "2026-11-12",
+    direction: "in" as const,
+    category: "Loan Receipt" as const,
+    description: "Line of credit drawdown",
+    amount: 120000,
+  },
+  {
+    date: "2026-11-05",
+    direction: "out" as const,
+    category: "Loan Repayment" as const,
+    description: "Term loan instalment",
+    amount: 6500,
+  },
+  {
+    date: "2026-12-05",
+    direction: "out" as const,
+    category: "Loan Repayment" as const,
+    description: "Term loan instalment",
+    amount: 6500,
+  },
+  {
+    date: "2026-12-15",
+    direction: "out" as const,
+    category: "Tax" as const,
+    description: "Estimated tax – Q4",
+    amount: 22000,
+  },
 ];
 
 /** Expected payouts per channel per month (from payout schedules / QuickBooks AR). */
-export const expectedReceipts: { channel: SalesChannel; month: string; amount: number; days: number[] }[] = [
+export const expectedReceipts: {
+  channel: SalesChannel;
+  month: string;
+  amount: number;
+  days: number[];
+}[] = [
   { channel: "Amazon", month: "2026-10", amount: 48000, days: [28] },
   { channel: "Amazon", month: "2026-11", amount: 104000, days: [11, 25] },
   { channel: "Amazon", month: "2026-12", amount: 128000, days: [9, 23] },
@@ -88,12 +375,22 @@ export const channelSales: ChannelSales[] = (() => {
   };
   const growth = [0.92, 0.97, 1, 0.78];
   const out: ChannelSales[] = [];
-  for (const [channel, [gross, refundPct, feePct]] of Object.entries(base) as [SalesChannel, [number, number, number]][]) {
+  for (const [channel, [gross, refundPct, feePct]] of Object.entries(base) as [
+    SalesChannel,
+    [number, number, number],
+  ][]) {
     SALES_MONTHS.forEach((month, i) => {
       const g = Math.round(gross * (growth[i] ?? 1));
       const refunds = Math.round(g * refundPct);
       const platformFees = Math.round(g * feePct);
-      out.push({ channel, month, grossSales: g, refunds, platformFees, expectedNet: g - refunds - platformFees });
+      out.push({
+        channel,
+        month,
+        grossSales: g,
+        refunds,
+        platformFees,
+        expectedNet: g - refunds - platformFees,
+      });
     });
   }
   return out;
@@ -116,7 +413,14 @@ export const cashReceipts: CashReceipt[] = (() => {
     if (pct <= 0) continue;
     const [y, m] = s.month.split("-").map(Number);
     const next = `${m === 12 ? y! + 1 : y}-${String(m === 12 ? 1 : m! + 1).padStart(2, "0")}`;
-    out.push({ id: `R-${s.channel}-${s.month}`, channel: s.channel, date: `${s.month === "2026-10" ? "2026-10" : next}-${s.month === "2026-10" ? "20" : "08"}`, amount: Math.round(s.expectedNet * pct), reference: `${s.channel} settlement ${s.month}`, settlesMonth: s.month });
+    out.push({
+      id: `R-${s.channel}-${s.month}`,
+      channel: s.channel,
+      date: `${s.month === "2026-10" ? "2026-10" : next}-${s.month === "2026-10" ? "20" : "08"}`,
+      amount: Math.round(s.expectedNet * pct),
+      reference: `${s.channel} settlement ${s.month}`,
+      settlesMonth: s.month,
+    });
   }
   return out;
 })();
@@ -138,35 +442,178 @@ export const adMetrics: AdMetric[] = (() => {
       const adSales = Math.round(s * roas * (roasTrend[i] ?? 1));
       const cpc = platform === "Amazon Ads" ? 1.15 : platform === "Google Ads" ? 0.95 : 0.78;
       const clicks = Math.round(s / cpc);
-      out.push({ platform, channel, month, spend: s, impressions: Math.round(clicks / ctr), clicks, orders: Math.round(clicks * cvr), adSales });
+      out.push({
+        platform,
+        channel,
+        month,
+        spend: s,
+        impressions: Math.round(clicks / ctr),
+        clicks,
+        orders: Math.round(clicks * cvr),
+        adSales,
+      });
     });
   }
   return out;
 })();
 
 export const channelCosts: ChannelCosts[] = (() => {
-  const unitPrice: Record<SalesChannel, number> = { Amazon: 15.5, Shopify: 17, "TikTok Shop": 14, Walmart: 15, "Salon Direct": 9.5, Distributor: 7.2 };
-  const fulfilPerUnit: Record<SalesChannel, number> = { Amazon: 3.9, Shopify: 4.6, "TikTok Shop": 4.2, Walmart: 4.4, "Salon Direct": 1.1, Distributor: 0.35 };
+  const unitPrice: Record<SalesChannel, number> = {
+    Amazon: 15.5,
+    Shopify: 17,
+    "TikTok Shop": 14,
+    Walmart: 15,
+    "Salon Direct": 9.5,
+    Distributor: 7.2,
+  };
+  const fulfilPerUnit: Record<SalesChannel, number> = {
+    Amazon: 3.9,
+    Shopify: 4.6,
+    "TikTok Shop": 4.2,
+    Walmart: 4.4,
+    "Salon Direct": 1.1,
+    Distributor: 0.35,
+  };
   const out: ChannelCosts[] = [];
   for (const s of channelSales) {
     const units = Math.round(s.grossSales / unitPrice[s.channel]);
-    const adSpend = adMetrics.filter((a) => a.channel === s.channel && a.month === s.month).reduce((t, a) => t + a.spend, 0);
-    out.push({ channel: s.channel, month: s.month, unitsSold: units, cogs: Math.round(units * 2.58), fulfillment: Math.round(units * fulfilPerUnit[s.channel]), adSpend });
+    const adSpend = adMetrics
+      .filter((a) => a.channel === s.channel && a.month === s.month)
+      .reduce((t, a) => t + a.spend, 0);
+    out.push({
+      channel: s.channel,
+      month: s.month,
+      unitsSold: units,
+      cogs: Math.round(units * 2.58),
+      fulfillment: Math.round(units * fulfilPerUnit[s.channel]),
+      adSpend,
+    });
   }
   return out;
 })();
 
 export const expenses: Expense[] = [
-  { id: "EX-301", date: "2026-09-01", vendor: "Brentwood Property LLC", category: "Rent", description: "Warehouse rent – Sep", amount: 14500, allocation: { Amazon: 35, Shopify: 30, "TikTok Shop": 10, Walmart: 10, "Salon Direct": 10, Distributor: 5 }, source: "QuickBooks" },
-  { id: "EX-302", date: "2026-09-10", vendor: "Brightside Creative Agency", category: "Marketing", description: "Creative retainer – Sep", amount: 9000, allocation: { Shopify: 50, "TikTok Shop": 30, Amazon: 20 }, source: "QuickBooks" },
-  { id: "EX-303", date: "2026-09-15", vendor: "Georgia Prep Warehouse", category: "3PL / Storage", description: "Georgia storage & prep – Sep", amount: 7900, allocation: { Amazon: 60, Walmart: 20, Shopify: 20 }, source: "QuickBooks" },
-  { id: "EX-304", date: "2026-09-30", vendor: "Payroll", category: "Payroll", description: "Sales & marketing payroll – Sep", amount: 52000, allocation: { Amazon: 30, Shopify: 25, "TikTok Shop": 10, Walmart: 5, "Salon Direct": 20, Distributor: 10 }, source: "QuickBooks" },
-  { id: "EX-305", date: "2026-09-22", vendor: "Influencer – @curlqueen", category: "Marketing", description: "TikTok creator campaign", amount: 6000, allocation: { "TikTok Shop": 100 }, source: "Manual" },
-  { id: "EX-306", date: "2026-09-25", vendor: "Hart & Co CPAs", category: "Professional Fees", description: "Monthly bookkeeping – Sep", amount: 2600, allocation: null, source: "QuickBooks" },
-  { id: "EX-307", date: "2026-09-28", vendor: "Salon Expo Atlanta", category: "Events", description: "Trade show booth", amount: 8400, allocation: null, source: "QuickBooks" },
-  { id: "EX-401", date: "2026-10-01", vendor: "Brentwood Property LLC", category: "Rent", description: "Warehouse rent – Oct", amount: 14500, allocation: { Amazon: 35, Shopify: 30, "TikTok Shop": 10, Walmart: 10, "Salon Direct": 10, Distributor: 5 }, source: "QuickBooks" },
-  { id: "EX-402", date: "2026-10-10", vendor: "Brightside Creative Agency", category: "Marketing", description: "Creative retainer – Oct", amount: 9000, allocation: null, source: "QuickBooks" },
-  { id: "EX-403", date: "2026-10-18", vendor: "FreightLink", category: "Freight", description: "Distributor freight – Beauty Supply East", amount: 3200, allocation: { Distributor: 100 }, source: "QuickBooks" },
+  {
+    id: "EX-301",
+    date: "2026-09-01",
+    vendor: "Brentwood Property LLC",
+    category: "Rent",
+    description: "Warehouse rent – Sep",
+    amount: 14500,
+    allocation: {
+      Amazon: 35,
+      Shopify: 30,
+      "TikTok Shop": 10,
+      Walmart: 10,
+      "Salon Direct": 10,
+      Distributor: 5,
+    },
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-302",
+    date: "2026-09-10",
+    vendor: "Brightside Creative Agency",
+    category: "Marketing",
+    description: "Creative retainer – Sep",
+    amount: 9000,
+    allocation: { Shopify: 50, "TikTok Shop": 30, Amazon: 20 },
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-303",
+    date: "2026-09-15",
+    vendor: "Georgia Prep Warehouse",
+    category: "3PL / Storage",
+    description: "Georgia storage & prep – Sep",
+    amount: 7900,
+    allocation: { Amazon: 60, Walmart: 20, Shopify: 20 },
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-304",
+    date: "2026-09-30",
+    vendor: "Payroll",
+    category: "Payroll",
+    description: "Sales & marketing payroll – Sep",
+    amount: 52000,
+    allocation: {
+      Amazon: 30,
+      Shopify: 25,
+      "TikTok Shop": 10,
+      Walmart: 5,
+      "Salon Direct": 20,
+      Distributor: 10,
+    },
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-305",
+    date: "2026-09-22",
+    vendor: "Influencer – @curlqueen",
+    category: "Marketing",
+    description: "TikTok creator campaign",
+    amount: 6000,
+    allocation: { "TikTok Shop": 100 },
+    source: "Manual",
+  },
+  {
+    id: "EX-306",
+    date: "2026-09-25",
+    vendor: "Hart & Co CPAs",
+    category: "Professional Fees",
+    description: "Monthly bookkeeping – Sep",
+    amount: 2600,
+    allocation: null,
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-307",
+    date: "2026-09-28",
+    vendor: "Salon Expo Atlanta",
+    category: "Events",
+    description: "Trade show booth",
+    amount: 8400,
+    allocation: null,
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-401",
+    date: "2026-10-01",
+    vendor: "Brentwood Property LLC",
+    category: "Rent",
+    description: "Warehouse rent – Oct",
+    amount: 14500,
+    allocation: {
+      Amazon: 35,
+      Shopify: 30,
+      "TikTok Shop": 10,
+      Walmart: 10,
+      "Salon Direct": 10,
+      Distributor: 5,
+    },
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-402",
+    date: "2026-10-10",
+    vendor: "Brightside Creative Agency",
+    category: "Marketing",
+    description: "Creative retainer – Oct",
+    amount: 9000,
+    allocation: null,
+    source: "QuickBooks",
+  },
+  {
+    id: "EX-403",
+    date: "2026-10-18",
+    vendor: "FreightLink",
+    category: "Freight",
+    description: "Distributor freight – Beauty Supply East",
+    amount: 3200,
+    allocation: { Distributor: 100 },
+    source: "QuickBooks",
+  },
 ];
 
 export const HEALTH_TARGETS = {

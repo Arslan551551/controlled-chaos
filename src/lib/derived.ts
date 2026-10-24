@@ -26,9 +26,10 @@ export function usePayments() {
   const { data, asOf } = useStore();
   return useMemo(() => {
     const payroll = data.payrollBatches.map(toPlannedPayment);
-    const all = [...plannedPayments(data.purchaseOrders, data.nonPOPayments, data.vendors), ...payroll].sort((a, b) =>
-      (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"),
-    );
+    const all = [
+      ...plannedPayments(data.purchaseOrders, data.nonPOPayments, data.vendors),
+      ...payroll,
+    ].sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
     return { all, ...paymentPlanByMonth(all, asOf, 3) };
   }, [data.purchaseOrders, data.nonPOPayments, data.vendors, data.payrollBatches, asOf]);
 }
@@ -45,8 +46,16 @@ export function useCashFlow() {
         id: `pp-${p.id}`,
         date: p.dueDate < asOf ? asOf : p.dueDate,
         direction: "out",
-        category: p.source === "PO Installment" ? "PO Payment" : p.source === "Payroll" ? "Payroll" : "Non-PO Payment",
-        description: p.source === "Payroll" ? `Pakistan payroll · ${p.reference}` : `${p.vendor} · ${p.reference}`,
+        category:
+          p.source === "PO Installment"
+            ? "PO Payment"
+            : p.source === "Payroll"
+              ? "Payroll"
+              : "Non-PO Payment",
+        description:
+          p.source === "Payroll"
+            ? `Pakistan payroll · ${p.reference}`
+            : `${p.vendor} · ${p.reference}`,
         amount: p.amount,
         source: p.source === "Payroll" ? "Payroll file" : "Payment Planner",
       });
@@ -56,13 +65,29 @@ export function useCashFlow() {
     for (const s of data.subscriptions.filter((x) => x.status === "Active")) {
       if (s.billingCycle === "Annual") {
         if (s.nextRenewal >= asOf && s.nextRenewal <= horizonEnd)
-          lines.push({ id: `sub-${s.id}`, date: s.nextRenewal, direction: "out", category: "Subscription", description: s.tool, amount: s.cost, source: "Subscriptions" });
+          lines.push({
+            id: `sub-${s.id}`,
+            date: s.nextRenewal,
+            direction: "out",
+            category: "Subscription",
+            description: s.tool,
+            amount: s.cost,
+            source: "Subscriptions",
+          });
         continue;
       }
       for (let i = 0; i < 3; i++) {
         const d = addMonths(s.nextRenewal, i);
         if (d >= asOf && d <= horizonEnd)
-          lines.push({ id: `sub-${s.id}-${i}`, date: d, direction: "out", category: "Subscription", description: s.tool, amount: monthlyCost(s), source: "Subscriptions" });
+          lines.push({
+            id: `sub-${s.id}-${i}`,
+            date: d,
+            direction: "out",
+            category: "Subscription",
+            description: s.tool,
+            amount: monthlyCost(s),
+            source: "Subscriptions",
+          });
       }
     }
     // Manual lines: payroll, loans, tax
@@ -71,7 +96,10 @@ export function useCashFlow() {
         id: `m-${i}`,
         ...m,
         // Manual payroll lines are US payroll; Pakistan payroll comes from the uploaded payroll file.
-        description: m.category === "Payroll" && !m.description.startsWith("US payroll") ? `US payroll · ${m.description}` : m.description,
+        description:
+          m.category === "Payroll" && !m.description.startsWith("US payroll")
+            ? `US payroll · ${m.description}`
+            : m.description,
         source: m.category.startsWith("Loan") ? "Loan Schedule" : "Manual",
       }),
     );
@@ -85,10 +113,16 @@ export function useCashFlow() {
           id: `rc-${r.channel}-${r.month}-${i}`,
           date,
           direction: "in",
-          category: r.channel === "Salon Direct" || r.channel === "Distributor" ? "Salon / Distributor Receipt" : "Marketplace Payout",
+          category:
+            r.channel === "Salon Direct" || r.channel === "Distributor"
+              ? "Salon / Distributor Receipt"
+              : "Marketplace Payout",
           description: `${r.channel} ${r.channel === "Salon Direct" || r.channel === "Distributor" ? "receipts (QuickBooks AR)" : "payout"}`,
           amount: Math.round(per),
-          source: r.channel === "Salon Direct" || r.channel === "Distributor" ? "QuickBooks AR" : "Payout Forecast",
+          source:
+            r.channel === "Salon Direct" || r.channel === "Distributor"
+              ? "QuickBooks AR"
+              : "Payout Forecast",
         });
       });
     }
@@ -101,17 +135,26 @@ export function useCashFlow() {
 export function useWeeklyCash(weeks = 8) {
   const { data, asOf } = useStore();
   const cash = useCashFlow();
-  return useMemo(() => weeklyCash(data.bankAccounts, cash.lines, asOf, weeks), [data.bankAccounts, cash.lines, asOf, weeks]);
+  return useMemo(
+    () => weeklyCash(data.bankAccounts, cash.lines, asOf, weeks),
+    [data.bankAccounts, cash.lines, asOf, weeks],
+  );
 }
 
 export function useSalesCash(months: string[] = SALES_MONTHS) {
   const { data } = useStore();
-  return useMemo(() => salesVsCash(data.channelSales, data.cashReceipts, months), [data.channelSales, data.cashReceipts, months]);
+  return useMemo(
+    () => salesVsCash(data.channelSales, data.cashReceipts, months),
+    [data.channelSales, data.cashReceipts, months],
+  );
 }
 
 export function useProfitability(months: string[]) {
   const { data } = useStore();
-  return useMemo(() => profitability(data.channelSales, data.channelCosts, data.expenses, months), [data.channelSales, data.channelCosts, data.expenses, months]);
+  return useMemo(
+    () => profitability(data.channelSales, data.channelCosts, data.expenses, months),
+    [data.channelSales, data.channelCosts, data.expenses, months],
+  );
 }
 
 export function useMarketing(months: string[]) {
@@ -119,15 +162,27 @@ export function useMarketing(months: string[]) {
   return useMemo(() => {
     const rows = data.adMetrics.filter((m) => months.includes(m.month));
     const channelTotal = (ch: string) =>
-      data.channelSales.filter((s) => s.channel === ch && months.includes(s.month)).reduce((a, s) => a + s.grossSales, 0);
+      data.channelSales
+        .filter((s) => s.channel === ch && months.includes(s.month))
+        .reduce((a, s) => a + s.grossSales, 0);
     const byPlatform = AD_PLATFORMS.map((p) => {
       const r = rows.filter((x) => x.platform === p);
       const channels = [...new Set(r.map((x) => x.channel))];
-      return summarize(p, r, channels.reduce((a, c) => a + channelTotal(c), 0));
+      return summarize(
+        p,
+        r,
+        channels.reduce((a, c) => a + channelTotal(c), 0),
+      );
     });
     const allChannels = [...new Set(rows.map((x) => x.channel))];
-    const total = summarize("All platforms", rows, allChannels.reduce((a, c) => a + channelTotal(c), 0));
-    const totalSalesAllChannels = data.channelSales.filter((s) => months.includes(s.month)).reduce((a, s) => a + s.grossSales, 0);
+    const total = summarize(
+      "All platforms",
+      rows,
+      allChannels.reduce((a, c) => a + channelTotal(c), 0),
+    );
+    const totalSalesAllChannels = data.channelSales
+      .filter((s) => months.includes(s.month))
+      .reduce((a, s) => a + s.grossSales, 0);
     return { rows, byPlatform, total, totalSalesAllChannels };
   }, [data.adMetrics, data.channelSales, months]);
 }
@@ -135,14 +190,24 @@ export function useMarketing(months: string[]) {
 export function useDistributors() {
   const { data, asOf } = useStore();
   return useMemo(
-    () => distributorPositions(data.distributors, data.distributorInvoices, data.distributorLedger, asOf, `${asOf.slice(0, 4)}-01-01`),
+    () =>
+      distributorPositions(
+        data.distributors,
+        data.distributorInvoices,
+        data.distributorLedger,
+        asOf,
+        `${asOf.slice(0, 4)}-01-01`,
+      ),
     [data.distributors, data.distributorInvoices, data.distributorLedger, asOf],
   );
 }
 
 export function useDetectedSubscriptions() {
   const { data } = useStore();
-  return useMemo(() => detectSubscriptions(data.bankTransactions, data.subscriptions), [data.bankTransactions, data.subscriptions]);
+  return useMemo(
+    () => detectSubscriptions(data.bankTransactions, data.subscriptions),
+    [data.bankTransactions, data.subscriptions],
+  );
 }
 
 export const LAST_FULL_MONTH = ["2026-09"];
@@ -169,7 +234,16 @@ export function useHealth() {
       distributors: dist,
     });
     return { signals, score: healthScore(signals), targets: HEALTH_TARGETS };
-  }, [cash.months, profit.rows, marketing.byPlatform, data.subscriptions, detected, planning.finishedGoods, sc, dist]);
+  }, [
+    cash.months,
+    profit.rows,
+    marketing.byPlatform,
+    data.subscriptions,
+    detected,
+    planning.finishedGoods,
+    sc,
+    dist,
+  ]);
 }
 
 export { SALES_MONTHS, monthKeys };
@@ -191,12 +265,35 @@ export function useProductProfit(months: string[], previousMonths: string[] = NO
   return useMemo(() => {
     const label = (sku: string) => data.skus.find((s) => s.sku === sku)?.description ?? sku;
     const family = (sku: string) => PRODUCT_FAMILIES[sku] ?? "Other";
-    const overhead = (rows: typeof overheadRows) => Object.fromEntries(rows.map((r) => [r.channel, r.allocatedExpenses]));
-    const current = buildProductPnl({ rows: data.skuChannelMonth, months, unitCost, channelOverhead: overhead(overheadRows), family, label });
+    const overhead = (rows: typeof overheadRows) =>
+      Object.fromEntries(rows.map((r) => [r.channel, r.allocatedExpenses]));
+    const current = buildProductPnl({
+      rows: data.skuChannelMonth,
+      months,
+      unitCost,
+      channelOverhead: overhead(overheadRows),
+      family,
+      label,
+    });
     const previous = previousMonths.length
-      ? buildProductPnl({ rows: data.skuChannelMonth, months: previousMonths, unitCost, channelOverhead: overhead(prevOverheadRows), family, label })
+      ? buildProductPnl({
+          rows: data.skuChannelMonth,
+          months: previousMonths,
+          unitCost,
+          channelOverhead: overhead(prevOverheadRows),
+          family,
+          label,
+        })
       : null;
     const leaks = profitDrivers(current, months.length, previous, DEFAULT_BENCHMARKS, label);
     return { current, previous, leaks, label, family };
-  }, [data.skuChannelMonth, data.skus, months, previousMonths, unitCost, overheadRows, prevOverheadRows]);
+  }, [
+    data.skuChannelMonth,
+    data.skus,
+    months,
+    previousMonths,
+    unitCost,
+    overheadRows,
+    prevOverheadRows,
+  ]);
 }

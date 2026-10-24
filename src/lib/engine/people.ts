@@ -52,7 +52,10 @@ export function rating(scorePct: number): Rating {
 export function reviewScore(review: KpiReview, template: ReviewTemplate): number {
   const totalWeight = template.criteria.reduce((a, c) => a + c.weight, 0);
   if (totalWeight <= 0) return 0;
-  const weighted = template.criteria.reduce((a, c) => a + c.weight * ((review.scores[c.id] ?? 0) / 4), 0);
+  const weighted = template.criteria.reduce(
+    (a, c) => a + c.weight * ((review.scores[c.id] ?? 0) / 4),
+    0,
+  );
   return Math.round((weighted / totalWeight) * 1000) / 10;
 }
 
@@ -124,30 +127,61 @@ export interface CommissionLine {
   commission: number;
 }
 
-export function planFor(plans: CommissionPlan[], repId: string, accountId: string, date: string): CommissionPlan | null {
+export function planFor(
+  plans: CommissionPlan[],
+  repId: string,
+  accountId: string,
+  date: string,
+): CommissionPlan | null {
   const active = plans.filter(
-    (p) => p.repId === repId && p.effectiveFrom <= date && (p.effectiveTo === null || p.effectiveTo >= date),
+    (p) =>
+      p.repId === repId &&
+      p.effectiveFrom <= date &&
+      (p.effectiveTo === null || p.effectiveTo >= date),
   );
-  return active.find((p) => p.accountId === accountId) ?? active.find((p) => p.accountId === null) ?? null;
+  return (
+    active.find((p) => p.accountId === accountId) ??
+    active.find((p) => p.accountId === null) ??
+    null
+  );
 }
 
 /** Commission for each order. Rejected orders earn nothing; first order is per salon account. */
-export function calculateCommission(orders: SalonOrder[], plans: CommissionPlan[]): CommissionLine[] {
+export function calculateCommission(
+  orders: SalonOrder[],
+  plans: CommissionPlan[],
+): CommissionLine[] {
   const firstOrder = new Map<string, SalonOrder>();
-  for (const o of [...orders].filter((o) => o.status !== "Rejected").sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))) {
+  for (const o of [...orders]
+    .filter((o) => o.status !== "Rejected")
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))) {
     if (!firstOrder.has(o.accountId)) firstOrder.set(o.accountId, o);
   }
   return orders.map((order) => {
-    if (order.status === "Rejected") return { order, plan: null, basis: "No Plan", ratePct: 0, commission: 0 };
+    if (order.status === "Rejected")
+      return { order, plan: null, basis: "No Plan", ratePct: 0, commission: 0 };
     const plan = planFor(plans, order.repId, order.accountId, order.date);
     if (!plan) return { order, plan: null, basis: "No Plan", ratePct: 0, commission: 0 };
     const first = firstOrder.get(order.accountId);
     if (first?.id === order.id) {
-      return { order, plan, basis: "First Order", ratePct: plan.firstOrderPct, commission: round2((order.netAmount * plan.firstOrderPct) / 100) };
+      return {
+        order,
+        plan,
+        basis: "First Order",
+        ratePct: plan.firstOrderPct,
+        commission: round2((order.netAmount * plan.firstOrderPct) / 100),
+      };
     }
-    const windowEnd = first && plan.recurringMonths !== null ? addMonths(first.date, plan.recurringMonths) : null;
+    const windowEnd =
+      first && plan.recurringMonths !== null ? addMonths(first.date, plan.recurringMonths) : null;
     if (windowEnd === null || order.date < windowEnd) {
-      return { order, plan, basis: "Recurring", ratePct: plan.recurringPct, commission: round2((order.netAmount * plan.recurringPct) / 100) };
+      return {
+        order,
+        plan,
+        basis: "Recurring",
+        ratePct: plan.recurringPct,
+        commission: round2((order.netAmount * plan.recurringPct) / 100),
+      };
     }
     return { order, plan, basis: "Outside Recurring Window", ratePct: 0, commission: 0 };
   });

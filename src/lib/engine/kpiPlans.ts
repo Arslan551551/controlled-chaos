@@ -8,7 +8,12 @@ export type Currency = "USD" | "PKR";
 export type Rating = "Excellent" | "Good" | "Fair" | "Poor";
 
 /** Review scale from the bonus workbook. A blank rating scores 0 (sheet behaviour) and is flagged. */
-export const RATING_POINTS: Record<Rating, number> = { Excellent: 100, Good: 75, Fair: 35, Poor: 0 };
+export const RATING_POINTS: Record<Rating, number> = {
+  Excellent: 100,
+  Good: 75,
+  Fair: 35,
+  Poor: 0,
+};
 
 export interface MetricSnapshot {
   id: string;
@@ -66,7 +71,13 @@ export type PlanComponent =
       periods: { amount: number; days: number; basisDays: number }[];
       roundTo: number | null;
     })
-  | (ComponentBase & { kind: "pctAboveThreshold"; metric: string; threshold: number; rate: number; floorAtZero: boolean })
+  | (ComponentBase & {
+      kind: "pctAboveThreshold";
+      metric: string;
+      threshold: number;
+      rate: number;
+      floorAtZero: boolean;
+    })
   | (ComponentBase & { kind: "pctOfMetric"; metric: string; rate: number })
   | (ComponentBase & { kind: "stepTier"; metric: string; tiers: Tier[] })
   | (ComponentBase & { kind: "progressiveSlab"; metric: string; slabs: Band[] })
@@ -75,9 +86,26 @@ export type PlanComponent =
       kind: "scoredReview";
       /** Achievable bonus before the review score. */
       base:
-        | { kind: "amount"; amount: number; daysWorked: number | null; basisDays: number | null; share: number }
-        | { kind: "pctOfMetric"; metric: string; rate: number; metricCurrency: Currency; share: number }
-        | { kind: "periods"; periods: { amount: number; days: number; basisDays: number }[]; roundTo: number | null; share: number };
+        | {
+            kind: "amount";
+            amount: number;
+            daysWorked: number | null;
+            basisDays: number | null;
+            share: number;
+          }
+        | {
+            kind: "pctOfMetric";
+            metric: string;
+            rate: number;
+            metricCurrency: Currency;
+            share: number;
+          }
+        | {
+            kind: "periods";
+            periods: { amount: number; days: number; basisDays: number }[];
+            roundTo: number | null;
+            share: number;
+          };
       /** Sheet override, e.g. Sadam/Rafay typed 100. null = use the review. */
       scoreOverride: number | null;
     });
@@ -158,7 +186,8 @@ export interface PayResult {
 
 // ---------------------------------------------------------------- helpers
 
-const fmt = (n: number, d = 2) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (n: number, d = 2) =>
+  n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
 const pctText = (r: number) => `${+(r * 100).toFixed(4)}%`;
 const r4 = (n: number) => Math.round(n * 10000) / 10000;
 
@@ -188,7 +217,11 @@ function inBand(v: number, from: number, to: number | null) {
   return v >= from && (to === null || v < to);
 }
 
-export function reviewScore(r: ReviewRating | undefined): { score: number; blanks: number; count: number } {
+export function reviewScore(r: ReviewRating | undefined): {
+  score: number;
+  blanks: number;
+  count: number;
+} {
   if (!r || r.answers.length === 0) return { score: 0, blanks: 0, count: 0 };
   const blanks = r.answers.filter((a) => a.rating === null).length;
   const total = r.answers.reduce((s, a) => s + (a.rating ? RATING_POINTS[a.rating] : 0), 0);
@@ -222,9 +255,17 @@ export function calculateComponent(
   const conditions: ConditionResult[] = c.conditions.map((k) => {
     const actual = snapshot.values[k.metric];
     if (actual === undefined) missing.add(k.metric);
-    return { text: `${k.metric} ${k.op} ${k.value}`, actual: actual ?? null, passed: actual !== undefined && compare(actual, k.op, k.value) };
+    return {
+      text: `${k.metric} ${k.op} ${k.value}`,
+      actual: actual ?? null,
+      passed: actual !== undefined && compare(actual, k.op, k.value),
+    };
   });
-  const gatePass = conditions.length === 0 || (c.conditionMode === "all" ? conditions.every((x) => x.passed) : conditions.some((x) => x.passed));
+  const gatePass =
+    conditions.length === 0 ||
+    (c.conditionMode === "all"
+      ? conditions.every((x) => x.passed)
+      : conditions.some((x) => x.passed));
 
   let raw = 0;
   let explanation = "";
@@ -235,7 +276,9 @@ export function calculateComponent(
         explanation = `Fixed ${fmt(c.amount)}`;
       } else {
         raw = c.periods.reduce((s, p) => s + (p.amount * p.days) / p.basisDays, 0);
-        explanation = c.periods.map((p) => `${fmt(p.amount, 0)} × ${p.days}/${p.basisDays}`).join(" + ") + ` = ${fmt(raw)}`;
+        explanation =
+          c.periods.map((p) => `${fmt(p.amount, 0)} × ${p.days}/${p.basisDays}`).join(" + ") +
+          ` = ${fmt(raw)}`;
       }
       if (c.roundTo !== null && c.roundTo > 0) {
         raw = Math.round(raw / c.roundTo) * c.roundTo;
@@ -248,7 +291,8 @@ export function calculateComponent(
       const diff = v - c.threshold;
       raw = c.rate * (c.floorAtZero ? Math.max(0, diff) : diff);
       explanation = `${pctText(c.rate)} × (${fmt(v)} − ${fmt(c.threshold)}) = ${fmt(raw)}`;
-      if (!c.floorAtZero && diff < 0) warnings.push("Below threshold gives a negative amount (sheet has no zero floor)");
+      if (!c.floorAtZero && diff < 0)
+        warnings.push("Below threshold gives a negative amount (sheet has no zero floor)");
       break;
     }
     case "pctOfMetric": {
@@ -297,12 +341,14 @@ export function calculateComponent(
       let achievable = 0;
       let baseText = "";
       if (c.base.kind === "amount") {
-        const prorate = c.base.daysWorked !== null && c.base.basisDays ? c.base.daysWorked / c.base.basisDays : 1;
+        const prorate =
+          c.base.daysWorked !== null && c.base.basisDays ? c.base.daysWorked / c.base.basisDays : 1;
         achievable = c.base.amount * prorate * c.base.share;
         baseText = `${fmt(c.base.amount, 0)}${prorate !== 1 ? ` × ${c.base.daysWorked}/${c.base.basisDays}` : ""}${c.base.share !== 1 ? ` × ${pctText(c.base.share)}` : ""}`;
       } else if (c.base.kind === "periods") {
         let a = c.base.periods.reduce((t, p) => t + (p.amount * p.days) / p.basisDays, 0);
-        if (c.base.roundTo !== null && c.base.roundTo > 0) a = Math.round(a / c.base.roundTo) * c.base.roundTo;
+        if (c.base.roundTo !== null && c.base.roundTo > 0)
+          a = Math.round(a / c.base.roundTo) * c.base.roundTo;
         achievable = a * c.base.share;
         baseText = `${c.base.periods.map((p) => `${fmt(p.amount, 0)} × ${p.days}/${p.basisDays}`).join(" + ")}${c.base.roundTo ? " (rounded)" : ""}${c.base.share !== 1 ? ` × ${pctText(c.base.share)}` : ""}`;
       } else {
@@ -313,8 +359,10 @@ export function calculateComponent(
       }
       const rs = reviewScore(review);
       const score = c.scoreOverride ?? rs.score;
-      if (c.scoreOverride === null && rs.count === 0) warnings.push("No review submitted for this month");
-      if (c.scoreOverride === null && rs.blanks > 0) warnings.push(`${rs.blanks} question(s) left blank — scored 0`);
+      if (c.scoreOverride === null && rs.count === 0)
+        warnings.push("No review submitted for this month");
+      if (c.scoreOverride === null && rs.blanks > 0)
+        warnings.push(`${rs.blanks} question(s) left blank — scored 0`);
       raw = (achievable * score) / 100;
       explanation = `Achievable ${baseText} = ${fmt(achievable)} × review score ${fmt(score)}% = ${fmt(raw)}${c.scoreOverride !== null ? " (score fixed by plan)" : ""}`;
       break;
@@ -332,7 +380,11 @@ export function calculateComponent(
     amount = c.floor;
     floored = true;
   }
-  if (!gatePass) explanation = `Not eligible (${conditions.filter((x) => !x.passed).map((x) => `${x.text}; actual ${x.actual === null ? "missing" : fmt(x.actual, 4)}`).join(" · ")}) → 0. Would have been: ${explanation}`;
+  if (!gatePass)
+    explanation = `Not eligible (${conditions
+      .filter((x) => !x.passed)
+      .map((x) => `${x.text}; actual ${x.actual === null ? "missing" : fmt(x.actual, 4)}`)
+      .join(" · ")}) → 0. Would have been: ${explanation}`;
   if (capped) explanation += ` → capped at ${fmt(c.cap ?? 0)}`;
   if (floored) explanation += ` → floor ${fmt(c.floor ?? 0)}`;
 
@@ -364,10 +416,14 @@ export interface PayContext {
 export function calculatePay(plan: PayPlan, ctx: PayContext): PayResult {
   const planCap = plan.cap;
   const missing = new Set<string>();
-  const review = ctx.reviews.find((r) => r.personId === plan.personId && r.period === ctx.snapshot.period);
+  const review = ctx.reviews.find(
+    (r) => r.personId === plan.personId && r.period === ctx.snapshot.period,
+  );
   const fx = ctx.snapshot.pkrPerUsd;
   const lines = plan.components.map((c) => calculateComponent(c, ctx.snapshot, review, missing));
-  for (const a of ctx.adjustments.filter((x) => x.personId === plan.personId && x.period === ctx.snapshot.period)) {
+  for (const a of ctx.adjustments.filter(
+    (x) => x.personId === plan.personId && x.period === ctx.snapshot.period,
+  )) {
     lines.push({
       componentId: a.id,
       label: a.amount >= 0 ? `Addition: ${a.reason}` : `Deduction: ${a.reason}`,
@@ -395,7 +451,11 @@ export function calculatePay(plan: PayPlan, ctx: PayContext): PayResult {
     }
   }
   const total = plan.payCurrency === "USD" ? totalUsd : totalPkr;
-  const planCapped = planCap !== null && (plan.payCurrency === "USD" ? lines.reduce((a, l) => a + l.amountUsd, 0) : lines.reduce((a, l) => a + l.amountPkr, 0)) > planCap;
+  const planCapped =
+    planCap !== null &&
+    (plan.payCurrency === "USD"
+      ? lines.reduce((a, l) => a + l.amountUsd, 0)
+      : lines.reduce((a, l) => a + l.amountPkr, 0)) > planCap;
   return {
     planCapped,
     planId: plan.id,
@@ -415,13 +475,20 @@ export function calculatePay(plan: PayPlan, ctx: PayContext): PayResult {
 export function planForPeriod(plans: PayPlan[], personId: string, period: string): PayPlan | null {
   const day = `${period}-01`;
   const matches = plans
-    .filter((p) => p.personId === personId && p.effectiveFrom <= day && (p.effectiveTo === null || p.effectiveTo >= day))
+    .filter(
+      (p) =>
+        p.personId === personId &&
+        p.effectiveFrom <= day &&
+        (p.effectiveTo === null || p.effectiveTo >= day),
+    )
     .sort((a, b) => b.version - a.version);
   return matches[0] ?? null;
 }
 
 export function describeComponent(c: PlanComponent): string {
-  const gate = c.conditions.length ? ` if ${c.conditions.map((k) => `${k.metric} ${k.op} ${k.value}`).join(c.conditionMode === "all" ? " and " : " or ")}` : "";
+  const gate = c.conditions.length
+    ? ` if ${c.conditions.map((k) => `${k.metric} ${k.op} ${k.value}`).join(c.conditionMode === "all" ? " and " : " or ")}`
+    : "";
   const cap = c.cap !== null ? `, cap ${fmt(c.cap, 0)}` : "";
   switch (c.kind) {
     case "fixed":

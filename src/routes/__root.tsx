@@ -84,7 +84,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Controlled Chaos" },
-      { name: "description", content: "Controlled Chaos operations, purchasing and finance portal." },
+      {
+        name: "description",
+        content: "Controlled Chaos operations, purchasing and finance portal.",
+      },
       { name: "robots", content: "noindex, nofollow" },
     ],
     links: [

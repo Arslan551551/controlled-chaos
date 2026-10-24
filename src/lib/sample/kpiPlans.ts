@@ -2,7 +2,17 @@
 // files Arslan shared (see docs/excel-analysis/). Figures are the real Aug-26 /
 // Sep-26 inputs. No bank details or ID numbers are stored here.
 
-import type { Band, Condition, MetricSnapshot, PayAdjustment, PayPlan, PlanComponent, Rating, ReviewRating, Tier } from "../engine/kpiPlans.ts";
+import type {
+  Band,
+  Condition,
+  MetricSnapshot,
+  PayAdjustment,
+  PayPlan,
+  PlanComponent,
+  Rating,
+  ReviewRating,
+  Tier,
+} from "../engine/kpiPlans.ts";
 
 export interface PlanPerson {
   id: string;
@@ -14,21 +24,126 @@ export interface PlanPerson {
 }
 
 export const planPeople: PlanPerson[] = [
-  { id: "P-ARSLAN", name: "Arslan Nasir", code: "CDC-011-22", role: "Director Finance", department: "Finance", managerId: null },
-  { id: "P-ASIM", name: "Asim Javed Butt", code: "CDC-013-26", role: "Creative Manager", department: "Digital Marketing", managerId: null },
-  { id: "P-AYAZ", name: "Ayaz Yasin", code: "CDC-012-26", role: "Google AdWords Manager", department: "Digital Marketing", managerId: null },
-  { id: "P-SHAHRUKH", name: "Muhammad Shahrukh Khan", code: "CDC-001-24", role: "Creative Content Strategist", department: "Digital Marketing", managerId: "P-ASIM" },
-  { id: "P-SOMAN", name: "Soman Yasir", code: "CDC-003-24", role: "Jr Graphic Designer", department: "Digital Marketing", managerId: "P-ASIM" },
-  { id: "P-NAZMA", name: "Nazma Shareef", code: "CDC-004-24", role: "Graphic Designer", department: "Digital Marketing", managerId: "P-ASIM" },
-  { id: "P-HNAVEED", name: "Hamza Naveed", code: "CDC-008-26", role: "Finance Officer", department: "Finance", managerId: "P-ARSLAN" },
-  { id: "P-HBILAL", name: "Hamza Bilal", code: "CDC-010-25", role: "Deputy Finance Manager", department: "Finance", managerId: "P-ARSLAN" },
-  { id: "P-ZUBIYA", name: "Zubiya Shahid", code: "CDC-007-25", role: "Social Media & Research Intern", department: "Digital Marketing", managerId: "P-ASIM" },
-  { id: "P-SADAM", name: "Sadam Hussain", code: "CDC-014-26", role: "Google Ads (Shopify)", department: "Digital Marketing", managerId: null },
-  { id: "P-RAFAY", name: "Muhammad Rafay", code: "CDC-015-26", role: "Meta Ads (Shopify)", department: "Digital Marketing", managerId: null },
-  { id: "P-MEHRAN", name: "Mehran", code: "CDC-009-26", role: "Amazon Account Manager", department: "Brands Management", managerId: null },
-  { id: "P-SHUMAILA", name: "Shumaila Mazhar", code: "CDC-006-25", role: "TikTok Shop", department: "Brands Management", managerId: null },
-  { id: "P-GMVMAX", name: "TikTok GMV Max Consultant", code: "VENDOR", role: "External consultant", department: "Marketing", managerId: null },
-  { id: "P-WALMART", name: "Walmart Channel Owner", code: "TBC", role: "Walmart owner (payee to confirm)", department: "Marketing", managerId: null },
+  {
+    id: "P-ARSLAN",
+    name: "Arslan Nasir",
+    code: "CDC-011-22",
+    role: "Director Finance",
+    department: "Finance",
+    managerId: null,
+  },
+  {
+    id: "P-ASIM",
+    name: "Asim Javed Butt",
+    code: "CDC-013-26",
+    role: "Creative Manager",
+    department: "Digital Marketing",
+    managerId: null,
+  },
+  {
+    id: "P-AYAZ",
+    name: "Ayaz Yasin",
+    code: "CDC-012-26",
+    role: "Google AdWords Manager",
+    department: "Digital Marketing",
+    managerId: null,
+  },
+  {
+    id: "P-SHAHRUKH",
+    name: "Muhammad Shahrukh Khan",
+    code: "CDC-001-24",
+    role: "Creative Content Strategist",
+    department: "Digital Marketing",
+    managerId: "P-ASIM",
+  },
+  {
+    id: "P-SOMAN",
+    name: "Soman Yasir",
+    code: "CDC-003-24",
+    role: "Jr Graphic Designer",
+    department: "Digital Marketing",
+    managerId: "P-ASIM",
+  },
+  {
+    id: "P-NAZMA",
+    name: "Nazma Shareef",
+    code: "CDC-004-24",
+    role: "Graphic Designer",
+    department: "Digital Marketing",
+    managerId: "P-ASIM",
+  },
+  {
+    id: "P-HNAVEED",
+    name: "Hamza Naveed",
+    code: "CDC-008-26",
+    role: "Finance Officer",
+    department: "Finance",
+    managerId: "P-ARSLAN",
+  },
+  {
+    id: "P-HBILAL",
+    name: "Hamza Bilal",
+    code: "CDC-010-25",
+    role: "Deputy Finance Manager",
+    department: "Finance",
+    managerId: "P-ARSLAN",
+  },
+  {
+    id: "P-ZUBIYA",
+    name: "Zubiya Shahid",
+    code: "CDC-007-25",
+    role: "Social Media & Research Intern",
+    department: "Digital Marketing",
+    managerId: "P-ASIM",
+  },
+  {
+    id: "P-SADAM",
+    name: "Sadam Hussain",
+    code: "CDC-014-26",
+    role: "Google Ads (Shopify)",
+    department: "Digital Marketing",
+    managerId: null,
+  },
+  {
+    id: "P-RAFAY",
+    name: "Muhammad Rafay",
+    code: "CDC-015-26",
+    role: "Meta Ads (Shopify)",
+    department: "Digital Marketing",
+    managerId: null,
+  },
+  {
+    id: "P-MEHRAN",
+    name: "Mehran",
+    code: "CDC-009-26",
+    role: "Amazon Account Manager",
+    department: "Brands Management",
+    managerId: null,
+  },
+  {
+    id: "P-SHUMAILA",
+    name: "Shumaila Mazhar",
+    code: "CDC-006-25",
+    role: "TikTok Shop",
+    department: "Brands Management",
+    managerId: null,
+  },
+  {
+    id: "P-GMVMAX",
+    name: "TikTok GMV Max Consultant",
+    code: "VENDOR",
+    role: "External consultant",
+    department: "Marketing",
+    managerId: null,
+  },
+  {
+    id: "P-WALMART",
+    name: "Walmart Channel Owner",
+    code: "TBC",
+    role: "Walmart owner (payee to confirm)",
+    department: "Marketing",
+    managerId: null,
+  },
 ];
 
 // ---------------------------------------------------------------- snapshots
@@ -105,7 +220,11 @@ export const metricSnapshots: MetricSnapshot[] = [
 
 // ---------------------------------------------------------------- reviews (Aug-26, from the bonus workbook)
 
-const all = (n: number, r: Rating = "Excellent") => Array.from({ length: n }, (_, i) => ({ question: `Question ${i + 1}`, rating: r as Rating | null }));
+const all = (n: number, r: Rating = "Excellent") =>
+  Array.from({ length: n }, (_, i) => ({
+    question: `Question ${i + 1}`,
+    rating: r as Rating | null,
+  }));
 
 export const reviewRatings: ReviewRating[] = [
   {
@@ -143,9 +262,26 @@ export const reviewRatings: ReviewRating[] = [
 
 // ---------------------------------------------------------------- plans
 
-const none = { conditions: [] as Condition[], conditionMode: "all" as const, cap: null, floor: null };
+const none = {
+  conditions: [] as Condition[],
+  conditionMode: "all" as const,
+  cap: null,
+  floor: null,
+};
 
-const reviewBonus = (id: string, personId: string, name: string, amount: number, opts: { days?: number; share?: number; scoreOverride?: number; ccShare?: number; notes?: string } = {}): PayPlan => ({
+const reviewBonus = (
+  id: string,
+  personId: string,
+  name: string,
+  amount: number,
+  opts: {
+    days?: number;
+    share?: number;
+    scoreOverride?: number;
+    ccShare?: number;
+    notes?: string;
+  } = {},
+): PayPlan => ({
   id,
   personId,
   name,
@@ -163,7 +299,13 @@ const reviewBonus = (id: string, personId: string, name: string, amount: number,
       kind: "scoredReview",
       currency: "PKR",
       ...none,
-      base: { kind: "amount", amount, daysWorked: opts.days ?? null, basisDays: opts.days === undefined ? null : 21, share: opts.share ?? 1 },
+      base: {
+        kind: "amount",
+        amount,
+        daysWorked: opts.days ?? null,
+        basisDays: opts.days === undefined ? null : 21,
+        share: opts.share ?? 1,
+      },
       scoreOverride: opts.scoreOverride ?? null,
     },
   ],
@@ -191,11 +333,41 @@ export const payPlans: PayPlan[] = [
     version: 1,
     controlledChaosShare: 1,
     cap: null,
-    notes: "Inputs from Sellerboard. TACoS shown but not paid on. Sheet has no zero floor on the variable parts — question for Arslan.",
+    notes:
+      "Inputs from Sellerboard. TACoS shown but not paid on. Sheet has no zero floor on the variable parts — question for Arslan.",
     components: [
-      comp({ id: "M-1", label: "Retainer", kind: "fixed", currency: "USD", ...none, amount: 350, periods: [], roundTo: null }),
-      comp({ id: "M-2", label: "Profit share", kind: "pctAboveThreshold", currency: "USD", ...none, metric: "amazon.netProfit", threshold: 6000, rate: 0.05, floorAtZero: false }),
-      comp({ id: "M-3", label: "Growth commission", kind: "pctAboveThreshold", currency: "USD", ...none, metric: "amazon.sales", threshold: 50000, rate: 0.02, floorAtZero: false }),
+      comp({
+        id: "M-1",
+        label: "Retainer",
+        kind: "fixed",
+        currency: "USD",
+        ...none,
+        amount: 350,
+        periods: [],
+        roundTo: null,
+      }),
+      comp({
+        id: "M-2",
+        label: "Profit share",
+        kind: "pctAboveThreshold",
+        currency: "USD",
+        ...none,
+        metric: "amazon.netProfit",
+        threshold: 6000,
+        rate: 0.05,
+        floorAtZero: false,
+      }),
+      comp({
+        id: "M-3",
+        label: "Growth commission",
+        kind: "pctAboveThreshold",
+        currency: "USD",
+        ...none,
+        metric: "amazon.sales",
+        threshold: 50000,
+        rate: 0.02,
+        floorAtZero: false,
+      }),
     ],
   },
   {
@@ -208,10 +380,38 @@ export const payPlans: PayPlan[] = [
     version: 1,
     controlledChaosShare: 1,
     cap: null,
-    notes: "Customer bands: whole-count or marginal not defined in the sheet (identical for counts ≤ 40).",
+    notes:
+      "Customer bands: whole-count or marginal not defined in the sheet (identical for counts ≤ 40).",
     components: [
-      comp({ id: "S-1", label: "New-customer incentive", kind: "perUnit", currency: "USD", ...none, metric: "google.newCustomers", mode: "whole", bands: shopifyBands([{ from: 1, to: 40, rate: 5 }, { from: 41, to: 80, rate: 7 }, { from: 81, to: null, rate: 9 }]) }),
-      comp({ id: "S-2", label: "ROAS incentive (5% of Google revenue)", kind: "pctOfMetric", currency: "USD", conditions: [{ metric: "google.roas", op: ">", value: 2.5 }, { metric: "meta.roas", op: ">", value: 1.5 }], conditionMode: "all", cap: null, floor: null, metric: "google.revenue", rate: 0.05 }),
+      comp({
+        id: "S-1",
+        label: "New-customer incentive",
+        kind: "perUnit",
+        currency: "USD",
+        ...none,
+        metric: "google.newCustomers",
+        mode: "whole",
+        bands: shopifyBands([
+          { from: 1, to: 40, rate: 5 },
+          { from: 41, to: 80, rate: 7 },
+          { from: 81, to: null, rate: 9 },
+        ]),
+      }),
+      comp({
+        id: "S-2",
+        label: "ROAS incentive (5% of Google revenue)",
+        kind: "pctOfMetric",
+        currency: "USD",
+        conditions: [
+          { metric: "google.roas", op: ">", value: 2.5 },
+          { metric: "meta.roas", op: ">", value: 1.5 },
+        ],
+        conditionMode: "all",
+        cap: null,
+        floor: null,
+        metric: "google.revenue",
+        rate: 0.05,
+      }),
     ],
   },
   {
@@ -226,13 +426,46 @@ export const payPlans: PayPlan[] = [
     cap: null,
     notes: "Same dual-ROAS gate as Sadam. Sheet converts at 277.4.",
     components: [
-      comp({ id: "R-1", label: "New-customer incentive", kind: "perUnit", currency: "USD", ...none, metric: "meta.newCustomers", mode: "whole", bands: [{ from: 1, to: 50, rate: 3 }, { from: 51, to: null, rate: 4 }] }),
-      comp({ id: "R-2", label: "ROAS incentive (5% of Meta revenue)", kind: "pctOfMetric", currency: "USD", conditions: [{ metric: "google.roas", op: ">", value: 2.5 }, { metric: "meta.roas", op: ">", value: 1.5 }], conditionMode: "all", cap: null, floor: null, metric: "meta.revenue", rate: 0.05 }),
+      comp({
+        id: "R-1",
+        label: "New-customer incentive",
+        kind: "perUnit",
+        currency: "USD",
+        ...none,
+        metric: "meta.newCustomers",
+        mode: "whole",
+        bands: [
+          { from: 1, to: 50, rate: 3 },
+          { from: 51, to: null, rate: 4 },
+        ],
+      }),
+      comp({
+        id: "R-2",
+        label: "ROAS incentive (5% of Meta revenue)",
+        kind: "pctOfMetric",
+        currency: "USD",
+        conditions: [
+          { metric: "google.roas", op: ">", value: 2.5 },
+          { metric: "meta.roas", op: ">", value: 1.5 },
+        ],
+        conditionMode: "all",
+        cap: null,
+        floor: null,
+        metric: "meta.revenue",
+        rate: 0.05,
+      }),
     ],
   },
-  reviewBonus("PLAN-ARSLAN-1", "P-ARSLAN", "Support team KPI bonus", 16500, { days: 21, ccShare: 0.55 }),
+  reviewBonus("PLAN-ARSLAN-1", "P-ARSLAN", "Support team KPI bonus", 16500, {
+    days: 21,
+    ccShare: 0.55,
+  }),
   reviewBonus("PLAN-ASIM-1", "P-ASIM", "Support team KPI bonus", 20000, { days: 21 }),
-  reviewBonus("PLAN-AYAZ-1", "P-AYAZ", "Support team KPI bonus (25% CC share)", 20000, { share: 0.25, ccShare: 1, notes: "Sheet charges 25% to Controlled Chaos inside the achievable amount." }),
+  reviewBonus("PLAN-AYAZ-1", "P-AYAZ", "Support team KPI bonus (25% CC share)", 20000, {
+    share: 0.25,
+    ccShare: 1,
+    notes: "Sheet charges 25% to Controlled Chaos inside the achievable amount.",
+  }),
   {
     id: "PLAN-SHAHRUKH-1",
     personId: "P-SHAHRUKH",
@@ -245,7 +478,21 @@ export const payPlans: PayPlan[] = [
     cap: null,
     notes: "Which Shopify revenue is the base is not confirmed (13,334.63 used).",
     components: [
-      comp({ id: "SK-1", label: "KPI bonus (review)", kind: "scoredReview", currency: "PKR", ...none, base: { kind: "pctOfMetric", metric: "shopify.revenue", rate: 0.01, metricCurrency: "USD", share: 1 }, scoreOverride: null }),
+      comp({
+        id: "SK-1",
+        label: "KPI bonus (review)",
+        kind: "scoredReview",
+        currency: "PKR",
+        ...none,
+        base: {
+          kind: "pctOfMetric",
+          metric: "shopify.revenue",
+          rate: 0.01,
+          metricCurrency: "USD",
+          share: 1,
+        },
+        scoreOverride: null,
+      }),
     ],
   },
   reviewBonus("PLAN-SOMAN-1", "P-SOMAN", "Support team KPI bonus", 7500),
@@ -263,10 +510,30 @@ export const payPlans: PayPlan[] = [
     cap: null,
     notes: "5,000 for 16 days then 7,500 for 14 days, 30-day basis, rounded to whole PKR.",
     components: [
-      comp({ id: "HB-1", label: "KPI bonus (review, pro-rata)", kind: "scoredReview", currency: "PKR", ...none, base: { kind: "periods", periods: [{ amount: 5000, days: 16, basisDays: 30 }, { amount: 7500, days: 14, basisDays: 30 }], roundTo: 1, share: 1 }, scoreOverride: null }),
+      comp({
+        id: "HB-1",
+        label: "KPI bonus (review, pro-rata)",
+        kind: "scoredReview",
+        currency: "PKR",
+        ...none,
+        base: {
+          kind: "periods",
+          periods: [
+            { amount: 5000, days: 16, basisDays: 30 },
+            { amount: 7500, days: 14, basisDays: 30 },
+          ],
+          roundTo: 1,
+          share: 1,
+        },
+        scoreOverride: null,
+      }),
     ],
   },
-  { ...reviewBonus("PLAN-HBILAL-2", "P-HBILAL", "Support team KPI bonus", 7500, { ccShare: 0.5 }), effectiveFrom: "2026-09-01", version: 2 },
+  {
+    ...reviewBonus("PLAN-HBILAL-2", "P-HBILAL", "Support team KPI bonus", 7500, { ccShare: 0.5 }),
+    effectiveFrom: "2026-09-01",
+    version: 2,
+  },
   reviewBonus("PLAN-ZUBIYA-1", "P-ZUBIYA", "Support team KPI bonus", 6000),
   {
     id: "PLAN-SHUMAILA-1",
@@ -280,9 +547,39 @@ export const payPlans: PayPlan[] = [
     cap: null,
     notes: "KPI bonus scoring rule not stated — assumed review-based. GMV definition to confirm.",
     components: [
-      comp({ id: "SH-1", label: "Base salary", kind: "fixed", currency: "PKR", ...none, amount: 45000, periods: [], roundTo: null }),
-      comp({ id: "SH-2", label: "KPI bonus (review)", kind: "scoredReview", currency: "PKR", ...none, base: { kind: "amount", amount: 10000, daysWorked: null, basisDays: null, share: 1 }, scoreOverride: null }),
-      comp({ id: "SH-3", label: "GMV bonus", kind: "stepTier", currency: "USD", ...none, metric: "tiktok.gmv", tiers: [{ from: 0, to: 10000, amount: 0 }, { from: 10000, to: 15000, amount: 50 }, { from: 15000, to: 20000, amount: 100 }, { from: 20000, to: null, amount: 200 }] }),
+      comp({
+        id: "SH-1",
+        label: "Base salary",
+        kind: "fixed",
+        currency: "PKR",
+        ...none,
+        amount: 45000,
+        periods: [],
+        roundTo: null,
+      }),
+      comp({
+        id: "SH-2",
+        label: "KPI bonus (review)",
+        kind: "scoredReview",
+        currency: "PKR",
+        ...none,
+        base: { kind: "amount", amount: 10000, daysWorked: null, basisDays: null, share: 1 },
+        scoreOverride: null,
+      }),
+      comp({
+        id: "SH-3",
+        label: "GMV bonus",
+        kind: "stepTier",
+        currency: "USD",
+        ...none,
+        metric: "tiktok.gmv",
+        tiers: [
+          { from: 0, to: 10000, amount: 0 },
+          { from: 10000, to: 15000, amount: 50 },
+          { from: 15000, to: 20000, amount: 100 },
+          { from: 20000, to: null, amount: 200 },
+        ],
+      }),
     ],
   },
   {
@@ -297,9 +594,52 @@ export const payPlans: PayPlan[] = [
     cap: 520,
     notes: "Nothing paid below $10k GMV. ROAS bands made continuous (3.505 / 4.505).",
     components: [
-      comp({ id: "G-1", label: "Fixed (by GMV)", kind: "stepTier", currency: "USD", conditions: gmvMaxGate, conditionMode: "all", cap: null, floor: null, metric: "gmvmax.gmv", tiers: gmvFixed }),
-      comp({ id: "G-2", label: "ROAS commission", kind: "stepTier", currency: "USD", conditions: gmvMaxGate, conditionMode: "all", cap: null, floor: null, metric: "gmvmax.roas", tiers: [{ from: 0, to: 3, amount: 0 }, { from: 3, to: 3.505, amount: 100 }, { from: 3.505, to: 4.505, amount: 150 }, { from: 4.505, to: null, amount: 200 }] }),
-      comp({ id: "G-3", label: "Growth commission", kind: "stepTier", currency: "USD", conditions: gmvMaxGate, conditionMode: "all", cap: null, floor: null, metric: "gmvmax.growth", tiers: [{ from: -1000, to: 0.15, amount: 0 }, { from: 0.15, to: 0.35, amount: 75 }, { from: 0.35, to: 0.6, amount: 100 }, { from: 0.6, to: null, amount: 120 }] }),
+      comp({
+        id: "G-1",
+        label: "Fixed (by GMV)",
+        kind: "stepTier",
+        currency: "USD",
+        conditions: gmvMaxGate,
+        conditionMode: "all",
+        cap: null,
+        floor: null,
+        metric: "gmvmax.gmv",
+        tiers: gmvFixed,
+      }),
+      comp({
+        id: "G-2",
+        label: "ROAS commission",
+        kind: "stepTier",
+        currency: "USD",
+        conditions: gmvMaxGate,
+        conditionMode: "all",
+        cap: null,
+        floor: null,
+        metric: "gmvmax.roas",
+        tiers: [
+          { from: 0, to: 3, amount: 0 },
+          { from: 3, to: 3.505, amount: 100 },
+          { from: 3.505, to: 4.505, amount: 150 },
+          { from: 4.505, to: null, amount: 200 },
+        ],
+      }),
+      comp({
+        id: "G-3",
+        label: "Growth commission",
+        kind: "stepTier",
+        currency: "USD",
+        conditions: gmvMaxGate,
+        conditionMode: "all",
+        cap: null,
+        floor: null,
+        metric: "gmvmax.growth",
+        tiers: [
+          { from: -1000, to: 0.15, amount: 0 },
+          { from: 0.15, to: 0.35, amount: 75 },
+          { from: 0.35, to: 0.6, amount: 100 },
+          { from: 0.6, to: null, amount: 120 },
+        ],
+      }),
     ],
   },
   {
@@ -312,19 +652,28 @@ export const payPlans: PayPlan[] = [
     version: 1,
     controlledChaosShare: 1,
     cap: null,
-    notes: "ROAS definition not in the plan (Walmart Connect attributed ÷ spend assumed). Payee to confirm.",
+    notes:
+      "ROAS definition not in the plan (Walmart Connect attributed ÷ spend assumed). Payee to confirm.",
     components: [
       comp({
         id: "W-1",
         label: "Slab commission on eligible net sales",
         kind: "progressiveSlab",
         currency: "USD",
-        conditions: [{ metric: "walmart.netSales", op: ">=", value: 1000 }, { metric: "walmart.roas", op: ">=", value: 2 }],
+        conditions: [
+          { metric: "walmart.netSales", op: ">=", value: 1000 },
+          { metric: "walmart.roas", op: ">=", value: 2 },
+        ],
         conditionMode: "all",
         cap: null,
         floor: null,
         metric: "walmart.netSales",
-        slabs: [{ from: 0, to: 2500, rate: 0.03 }, { from: 2500, to: 5000, rate: 0.0275 }, { from: 5000, to: 10000, rate: 0.025 }, { from: 10000, to: null, rate: 0.015 }],
+        slabs: [
+          { from: 0, to: 2500, rate: 0.03 },
+          { from: 2500, to: 5000, rate: 0.0275 },
+          { from: 5000, to: 10000, rate: 0.025 },
+          { from: 10000, to: null, rate: 0.015 },
+        ],
       }),
     ],
   },
@@ -343,7 +692,25 @@ export interface PayRun {
 }
 
 export const payRuns: PayRun[] = [
-  { personId: "P-ARSLAN", period: "2026-08", status: "Sent to payroll", approvedBy: "CEO", approvedAt: "2026-09-08" },
-  { personId: "P-ASIM", period: "2026-08", status: "Sent to payroll", approvedBy: "CEO", approvedAt: "2026-09-08" },
-  { personId: "P-SADAM", period: "2026-08", status: "Approved by CEO", approvedBy: "CEO", approvedAt: "2026-09-08" },
+  {
+    personId: "P-ARSLAN",
+    period: "2026-08",
+    status: "Sent to payroll",
+    approvedBy: "CEO",
+    approvedAt: "2026-09-08",
+  },
+  {
+    personId: "P-ASIM",
+    period: "2026-08",
+    status: "Sent to payroll",
+    approvedBy: "CEO",
+    approvedAt: "2026-09-08",
+  },
+  {
+    personId: "P-SADAM",
+    period: "2026-08",
+    status: "Approved by CEO",
+    approvedBy: "CEO",
+    approvedAt: "2026-09-08",
+  },
 ];

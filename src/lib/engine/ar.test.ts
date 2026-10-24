@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { agingBy, arPosition, bucketOf, dso, generateReminders, type ArInvoice, type ReminderRules } from "./ar.ts";
+import {
+  agingBy,
+  arPosition,
+  bucketOf,
+  dso,
+  generateReminders,
+  type ArInvoice,
+  type ReminderRules,
+} from "./ar.ts";
 
 const ASOF = "2026-10-24";
 
@@ -58,7 +66,11 @@ describe("AR aging", () => {
   });
 
   it("groups by owner", () => {
-    const rows = agingBy([inv({ id: "a" }), inv({ id: "b", ownerId: "F", ownerName: "Finance" })], ASOF, (i) => ({ key: i.ownerId, label: i.ownerName, type: null, ownerName: i.ownerName }));
+    const rows = agingBy(
+      [inv({ id: "a" }), inv({ id: "b", ownerId: "F", ownerName: "Finance" })],
+      ASOF,
+      (i) => ({ key: i.ownerId, label: i.ownerName, type: null, ownerName: i.ownerName }),
+    );
     expect(rows).toHaveLength(2);
     expect(rows[0]!.oldestDaysOverdue).toBe(23);
   });
@@ -70,7 +82,12 @@ describe("AR aging", () => {
 
 describe("internal AR reminders", () => {
   it("reminds the owner before due and on the due date, never the customer", () => {
-    const r = generateReminders([inv({ id: "a", dueDate: "2026-10-27" }), inv({ id: "b", dueDate: ASOF })], rules, ASOF, []);
+    const r = generateReminders(
+      [inv({ id: "a", dueDate: "2026-10-27" }), inv({ id: "b", dueDate: ASOF })],
+      rules,
+      ASOF,
+      [],
+    );
     expect(r.map((x) => x.kind)).toEqual(["Before due", "Due today"]);
     expect(r.every((x) => x.to === "rep@cc.example")).toBe(true);
     expect(r[0]!.body.includes("not sent to the customer")).toBe(true);
@@ -78,12 +95,25 @@ describe("internal AR reminders", () => {
 
   it("repeats overdue reminders every N days", () => {
     const i = inv({ id: "a", dueDate: "2026-10-10" });
-    expect(generateReminders([i], rules, ASOF, [{ invoiceId: "a", sentOn: "2026-10-20", kind: "Overdue", to: "rep@cc.example" }])).toHaveLength(0);
-    expect(generateReminders([i], rules, ASOF, [{ invoiceId: "a", sentOn: "2026-10-17", kind: "Overdue", to: "rep@cc.example" }])).toHaveLength(1);
+    expect(
+      generateReminders([i], rules, ASOF, [
+        { invoiceId: "a", sentOn: "2026-10-20", kind: "Overdue", to: "rep@cc.example" },
+      ]),
+    ).toHaveLength(0);
+    expect(
+      generateReminders([i], rules, ASOF, [
+        { invoiceId: "a", sentOn: "2026-10-17", kind: "Overdue", to: "rep@cc.example" },
+      ]),
+    ).toHaveLength(1);
   });
 
   it("escalates to Finance at 30+ and the CEO at 60+ days", () => {
-    const r = generateReminders([inv({ id: "a", dueDate: "2026-09-20" }), inv({ id: "b", dueDate: "2026-08-20" })], rules, ASOF, []);
+    const r = generateReminders(
+      [inv({ id: "a", dueDate: "2026-09-20" }), inv({ id: "b", dueDate: "2026-08-20" })],
+      rules,
+      ASOF,
+      [],
+    );
     expect(r[0]!.cc).toEqual(["finance@cc.example", "ceo@cc.example"]);
     expect(r[1]!.cc).toEqual(["finance@cc.example"]);
   });

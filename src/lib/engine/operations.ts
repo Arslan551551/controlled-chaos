@@ -50,13 +50,22 @@ export function isCounted(l: CountSheetLine): boolean {
 
 export function sheetProgress(sheet: CountSheet) {
   const counted = sheet.lines.filter(isCounted).length;
-  return { counted, total: sheet.lines.length, pct: sheet.lines.length ? counted / sheet.lines.length : 0 };
+  return {
+    counted,
+    total: sheet.lines.length,
+    pct: sheet.lines.length ? counted / sheet.lines.length : 0,
+  };
 }
 
 /** Units/box looks wrong: over 1,000, or more than 3× away from the SKU master value. */
 export function unitsPerBoxAnomaly(lineUnits: number, masterUnits: number): boolean {
   if (lineUnits > 1000) return true;
-  if (masterUnits > 0 && lineUnits > 0 && (lineUnits > masterUnits * 3 || lineUnits * 3 < masterUnits)) return true;
+  if (
+    masterUnits > 0 &&
+    lineUnits > 0 &&
+    (lineUnits > masterUnits * 3 || lineUnits * 3 < masterUnits)
+  )
+    return true;
   return false;
 }
 
@@ -78,7 +87,15 @@ export function sheetVariances(
     const counted = isCounted(l) ? countedTotal(l) : null;
     const anomaly = l.boxes !== null && unitsPerBoxAnomaly(l.unitsPerBox, masterUnitsPerBox(l.sku));
     if (counted === null || l.systemQty === null) {
-      return { ...l, counted, variance: null, variancePct: null, valueImpact: null, needsReview: false, anomaly };
+      return {
+        ...l,
+        counted,
+        variance: null,
+        variancePct: null,
+        valueImpact: null,
+        needsReview: false,
+        anomaly,
+      };
     }
     const variance = counted - l.systemQty;
     const variancePct = l.systemQty > 0 ? variance / l.systemQty : counted > 0 ? 1 : 0;
@@ -103,8 +120,26 @@ export function newCountSheet(
 ): CountSheet {
   const lines = [...skus]
     .sort((a, b) => b.burnPerDay - a.burnPerDay || a.sku.localeCompare(b.sku))
-    .map((s) => ({ sku: s.sku, countedAt: null, boxes: null, unitsPerBox: s.unitsPerBox, looseUnits: null, systemQty: null, counter: null }));
-  return { id, month, location, status: "In Progress", lines, notes: "", sentAt: null, adjustedBy: null, adjustedAt: null };
+    .map((s) => ({
+      sku: s.sku,
+      countedAt: null,
+      boxes: null,
+      unitsPerBox: s.unitsPerBox,
+      looseUnits: null,
+      systemQty: null,
+      counter: null,
+    }));
+  return {
+    id,
+    month,
+    location,
+    status: "In Progress",
+    lines,
+    notes: "",
+    sentAt: null,
+    adjustedBy: null,
+    adjustedAt: null,
+  };
 }
 
 /** The email Finance receives. Queued in the outbox; sent via Gmail later. Only counted lines with a difference. */
@@ -183,7 +218,10 @@ export interface DetectedSubscription {
  * within 15% of their average. Unregistered ones need an owner; registered
  * ones are checked for price increases (> 5% above the register cost).
  */
-export function detectSubscriptions(transactions: BankTransaction[], register: Subscription[]): DetectedSubscription[] {
+export function detectSubscriptions(
+  transactions: BankTransaction[],
+  register: Subscription[],
+): DetectedSubscription[] {
   const groups = new Map<string, BankTransaction[]>();
   for (const t of transactions) {
     const key = normalizeMerchant(t.merchant);
@@ -198,13 +236,26 @@ export function detectSubscriptions(transactions: BankTransaction[], register: S
     const sorted = [...charges].sort((a, b) => a.date.localeCompare(b.date));
     const last = sorted[sorted.length - 1]!;
     const matched = register.find((s) => normalizeMerchant(s.merchantMatch) === merchant) ?? null;
-    const monthlyCost = matched ? (matched.billingCycle === "Annual" ? matched.cost / 12 : matched.cost) : 0;
+    const monthlyCost = matched
+      ? matched.billingCycle === "Annual"
+        ? matched.cost / 12
+        : matched.cost
+      : 0;
     const finding: DetectedSubscription["finding"] = !matched
       ? "Not registered"
       : last.amount > monthlyCost * 1.05
         ? "Price increase"
         : "Matches register";
-    out.push({ merchant, charges: sorted, months, averageAmount: avg, lastAmount: last.amount, lastDate: last.date, matched, finding });
+    out.push({
+      merchant,
+      charges: sorted,
+      months,
+      averageAmount: avg,
+      lastAmount: last.amount,
+      lastDate: last.date,
+      matched,
+      finding,
+    });
   }
   return out.sort((a, b) => a.finding.localeCompare(b.finding) || b.lastAmount - a.lastAmount);
 }

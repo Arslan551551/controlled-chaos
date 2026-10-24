@@ -66,13 +66,29 @@ export interface ArGroupRow {
 }
 
 /** Aging grouped by any key (customer, owner, type). All amounts in USD. */
-export function agingBy(invoices: ArInvoice[], asOf: string, keyOf: (i: ArInvoice) => { key: string; label: string; type: CustomerType | null; ownerName: string }): ArGroupRow[] {
+export function agingBy(
+  invoices: ArInvoice[],
+  asOf: string,
+  keyOf: (i: ArInvoice) => {
+    key: string;
+    label: string;
+    type: CustomerType | null;
+    ownerName: string;
+  },
+): ArGroupRow[] {
   const map = new Map<string, ArGroupRow>();
   for (const inv of invoices) {
     const open = openUsd(inv);
     if (open <= 0) continue;
     const k = keyOf(inv);
-    const row = map.get(k.key) ?? { ...k, invoices: 0, open: 0, overdue: 0, buckets: emptyBuckets(), oldestDaysOverdue: 0 };
+    const row = map.get(k.key) ?? {
+      ...k,
+      invoices: 0,
+      open: 0,
+      overdue: 0,
+      buckets: emptyBuckets(),
+      oldestDaysOverdue: 0,
+    };
     const b = bucketOf(inv, asOf);
     row.invoices += 1;
     row.open = round2(row.open + open);
@@ -106,7 +122,9 @@ export function arPosition(invoices: ArInvoice[], asOf: string) {
  */
 export function dso(invoices: ArInvoice[], asOf: string, days = 90): number {
   const from = addDays(asOf, -days);
-  const billed = invoices.filter((i) => i.date > from && i.date <= asOf).reduce((a, i) => a + i.amount * i.fxToUsd, 0);
+  const billed = invoices
+    .filter((i) => i.date > from && i.date <= asOf)
+    .reduce((a, i) => a + i.amount * i.fxToUsd, 0);
   if (billed <= 0) return 0;
   const open = invoices.reduce((a, i) => a + openUsd(i), 0);
   return Math.round((open / billed) * days);
@@ -155,7 +173,12 @@ export interface Reminder {
  * Reminders due today. Recipients are always internal (account owner, plus
  * Finance / CEO escalation) — the customer is never a recipient.
  */
-export function generateReminders(invoices: ArInvoice[], rules: ReminderRules, asOf: string, log: ReminderLogEntry[]): Reminder[] {
+export function generateReminders(
+  invoices: ArInvoice[],
+  rules: ReminderRules,
+  asOf: string,
+  log: ReminderLogEntry[],
+): Reminder[] {
   const out: Reminder[] = [];
   for (const inv of invoices) {
     const open = openAmount(inv);
@@ -166,18 +189,27 @@ export function generateReminders(invoices: ArInvoice[], rules: ReminderRules, a
     if (rules.daysBeforeDue > 0 && toDue === rules.daysBeforeDue) kind = "Before due";
     else if (rules.onDueDate && toDue === 0) kind = "Due today";
     else if (late > 0 && rules.overdueEveryDays > 0) {
-      const sent = log.filter((l) => l.invoiceId === inv.id && l.kind === "Overdue").map((l) => l.sentOn).sort();
+      const sent = log
+        .filter((l) => l.invoiceId === inv.id && l.kind === "Overdue")
+        .map((l) => l.sentOn)
+        .sort();
       const last = sent[sent.length - 1];
       if (!last || daysBetween(last, asOf) >= rules.overdueEveryDays) kind = "Overdue";
     }
     if (!kind) continue;
     if (kind !== "Overdue" && log.some((l) => l.invoiceId === inv.id && l.kind === kind)) continue;
     const cc: string[] = [];
-    if (late >= rules.escalateFinanceAt && rules.financeEmail !== inv.ownerEmail) cc.push(rules.financeEmail);
+    if (late >= rules.escalateFinanceAt && rules.financeEmail !== inv.ownerEmail)
+      cc.push(rules.financeEmail);
     if (late >= rules.escalateCeoAt) cc.push(rules.ceoEmail);
     const amountUsd = openUsd(inv);
     const money = `${inv.currency === "USD" ? "$" : inv.currency + " "}${open.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const when = kind === "Before due" ? `is due in ${toDue} days (${inv.dueDate})` : kind === "Due today" ? `is due today (${inv.dueDate})` : `is ${late} days overdue (due ${inv.dueDate})`;
+    const when =
+      kind === "Before due"
+        ? `is due in ${toDue} days (${inv.dueDate})`
+        : kind === "Due today"
+          ? `is due today (${inv.dueDate})`
+          : `is ${late} days overdue (due ${inv.dueDate})`;
     out.push({
       id: `${inv.id}-${kind}-${asOf}`,
       invoiceId: inv.id,
@@ -193,7 +225,9 @@ export function generateReminders(invoices: ArInvoice[], rules: ReminderRules, a
         cc.length ? `Escalated to: ${cc.join(", ")}.` : "",
         "",
         "This is an internal reminder from the Controlled Chaos portal. It was not sent to the customer.",
-      ].filter((s, i, a) => !(s === "" && a[i - 1] === "")).join("\n"),
+      ]
+        .filter((s, i, a) => !(s === "" && a[i - 1] === ""))
+        .join("\n"),
       customerName: inv.customerName,
       ownerName: inv.ownerName,
       amountUsd,

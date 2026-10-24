@@ -1,14 +1,38 @@
 import { useMemo, useState } from "react";
 
-import { Assume, ModuleGate, ModuleHead, ModuleStat, Section, Source, Tabs } from "@/components/cc/ui";
+import {
+  Assume,
+  ModuleGate,
+  ModuleHead,
+  ModuleStat,
+  Section,
+  Source,
+  Tabs,
+} from "@/components/cc/ui";
 import type { HealthSignal } from "@/lib/engine/health";
-import { LAST_FULL_MONTH, useCashFlow, useDistributors, useHealth, useMarketing, useProfitability } from "@/lib/derived";
+import {
+  LAST_FULL_MONTH,
+  useCashFlow,
+  useDistributors,
+  useHealth,
+  useMarketing,
+  useProfitability,
+} from "@/lib/derived";
 import { monthLabel, pct, usd } from "@/lib/format";
 import { usePlanning } from "@/lib/store";
 
 type AreaFilter = "All" | HealthSignal["area"];
 
-const AREAS: AreaFilter[] = ["All", "Cash", "Profitability", "Marketing", "Subscriptions", "Inventory", "Collections", "Distributors"];
+const AREAS: AreaFilter[] = [
+  "All",
+  "Cash",
+  "Profitability",
+  "Marketing",
+  "Subscriptions",
+  "Inventory",
+  "Collections",
+  "Distributors",
+];
 
 function scoreColor(score: number): string {
   if (score >= 80) return "#148a60";
@@ -28,7 +52,9 @@ function SignalRow({ s }: { s: HealthSignal }) {
       <div className="stripe" />
       <div>
         <div className="signal-title">{s.title}</div>
-        <div className="signal-detail">{s.area} · {s.detail}</div>
+        <div className="signal-detail">
+          {s.area} · {s.detail}
+        </div>
         {s.suggestion ? <div className="signal-suggest">→ {s.suggestion}</div> : null}
       </div>
       <div className="saving">
@@ -38,7 +64,9 @@ function SignalRow({ s }: { s: HealthSignal }) {
             per month
           </>
         ) : (
-          <span>{s.severity === "critical" ? "Critical" : s.severity === "warning" ? "Watch" : "OK"}</span>
+          <span>
+            {s.severity === "critical" ? "Critical" : s.severity === "warning" ? "Watch" : "OK"}
+          </span>
         )}
       </div>
     </div>
@@ -66,15 +94,21 @@ function HealthContent() {
 
   const critical = signals.filter((s) => s.severity === "critical").length;
   const warning = signals.filter((s) => s.severity === "warning").length;
-  const savings = signals.filter((s) => s.monthlySaving > 0).sort((a, b) => b.monthlySaving - a.monthlySaving);
+  const savings = signals
+    .filter((s) => s.monthlySaving > 0)
+    .sort((a, b) => b.monthlySaving - a.monthlySaving);
   const totalSavings = savings.reduce((a, s) => a + s.monthlySaving, 0);
-  const plannedTotal = savings.filter((s) => planned[s.id]).reduce((a, s) => a + s.monthlySaving, 0);
+  const plannedTotal = savings
+    .filter((s) => planned[s.id])
+    .reduce((a, s) => a + s.monthlySaving, 0);
 
   const lowest = [...cash.months].sort((a, b) => a.closing - b.closing)[0];
   const netProfit = profit.rows.reduce((a, r) => a + r.netProfit, 0);
   const netRevenue = profit.rows.reduce((a, r) => a + r.netRevenue, 0);
   const openAR = distributors.reduce((a, d) => a + d.openAR, 0);
-  const poNow = planning.finishedGoods.filter((p) => p.poStatus === "PO Now" || p.poStatus === "Additional PO Required");
+  const poNow = planning.finishedGoods.filter(
+    (p) => p.poStatus === "PO Now" || p.poStatus === "Additional PO Required",
+  );
 
   const filtered = area === "All" ? signals : signals.filter((s) => s.area === area);
 
@@ -82,7 +116,9 @@ function HealthContent() {
     const withRevenue = profit.rows.filter((r) => r.netRevenue > 0);
     const best = [...withRevenue].sort((a, b) => b.netMarginPct - a.netMarginPct)[0];
     const worst = [...withRevenue].sort((a, b) => a.netMarginPct - b.netMarginPct)[0];
-    const weakAds = [...marketing.byPlatform].filter((m) => m.spend > 0).sort((a, b) => a.roas - b.roas)[0];
+    const weakAds = [...marketing.byPlatform]
+      .filter((m) => m.spend > 0)
+      .sort((a, b) => a.roas - b.roas)[0];
     const top3 = savings.slice(0, 3);
     const paras: string[] = [];
     paras.push(
@@ -111,10 +147,26 @@ function HealthContent() {
       );
     }
     if (poNow.length > 0) {
-      paras.push(`${poNow.length} SKU${poNow.length === 1 ? " needs" : "s need"} a purchase order now: ${poNow.map((p) => p.sku).join(", ")}.`);
+      paras.push(
+        `${poNow.length} SKU${poNow.length === 1 ? " needs" : "s need"} a purchase order now: ${poNow.map((p) => p.sku).join(", ")}.`,
+      );
     }
     return paras;
-  }, [profit.rows, marketing, savings, score, critical, warning, cash.opening, lowest, targets, netProfit, netRevenue, totalSavings, poNow]);
+  }, [
+    profit.rows,
+    marketing,
+    savings,
+    score,
+    critical,
+    warning,
+    cash.opening,
+    lowest,
+    targets,
+    netProfit,
+    netRevenue,
+    totalSavings,
+    poNow,
+  ]);
 
   const color = scoreColor(score);
 
@@ -126,20 +178,43 @@ function HealthContent() {
 
       <div className="module-stats">
         <ModuleStat label="Cash today" value={usd(cash.opening)} note="QuickBooks bank balances" />
-        <ModuleStat label="Lowest month-end cash" value={lowest ? usd(lowest.closing) : "—"} note={lowest ? `${monthLabel(lowest.month)} · 3-month outlook` : ""} />
-        <ModuleStat label={`${monthLabel(LAST_FULL_MONTH[0] ?? "")} net profit`} value={usd(netProfit)} note="All channels, after allocated expenses" />
+        <ModuleStat
+          label="Lowest month-end cash"
+          value={lowest ? usd(lowest.closing) : "—"}
+          note={lowest ? `${monthLabel(lowest.month)} · 3-month outlook` : ""}
+        />
+        <ModuleStat
+          label={`${monthLabel(LAST_FULL_MONTH[0] ?? "")} net profit`}
+          value={usd(netProfit)}
+          note="All channels, after allocated expenses"
+        />
       </div>
       <div className="module-stats">
-        <ModuleStat label="Blended ROAS" value={marketing.total.roas.toFixed(2)} note={`Target ${targets.targetRoas.toFixed(1)}`} />
-        <ModuleStat label="Distributor open AR" value={usd(openAR)} note={`${distributors.filter((d) => d.overdue > 0).length} with overdue invoices`} />
-        <ModuleStat label="SKUs needing PO" value={poNow.length} note={poNow.map((p) => p.sku).join(", ") || "None"} />
+        <ModuleStat
+          label="Blended ROAS"
+          value={marketing.total.roas.toFixed(2)}
+          note={`Target ${targets.targetRoas.toFixed(1)}`}
+        />
+        <ModuleStat
+          label="Distributor open AR"
+          value={usd(openAR)}
+          note={`${distributors.filter((d) => d.overdue > 0).length} with overdue invoices`}
+        />
+        <ModuleStat
+          label="SKUs needing PO"
+          value={poNow.length}
+          note={poNow.map((p) => p.sku).join(", ") || "None"}
+        />
       </div>
 
       <div className="grid-main-side">
         <div className="stack">
           <div className="card">
             <div className="row" style={{ gap: 22, alignItems: "center" }}>
-              <div className="score-ring" style={{ background: `conic-gradient(${color} ${score * 3.6}deg, #eef1f5 0deg)` }}>
+              <div
+                className="score-ring"
+                style={{ background: `conic-gradient(${color} ${score * 3.6}deg, #eef1f5 0deg)` }}
+              >
                 <div className="inner">
                   <div>
                     <strong>{score}</strong>
@@ -157,16 +232,26 @@ function HealthContent() {
                 <div className="muted" style={{ fontSize: 12 }}>
                   Possible savings: <strong className="pos">{usd(totalSavings)}</strong> per month
                 </div>
-                <Assume title="Score starts at 100: −15 per critical signal, −5 per warning. Targets can be changed.">How the score works</Assume>
+                <Assume title="Score starts at 100: −15 per critical signal, −5 per warning. Targets can be changed.">
+                  How the score works
+                </Assume>
               </div>
             </div>
           </div>
 
           <Section title="Signals" kicker="WHAT NEEDS ATTENTION" hint={`${filtered.length} shown`}>
             <div style={{ marginBottom: 12 }}>
-              <Tabs tabs={AREAS.map((a) => ({ id: a, label: a }))} value={area} onChange={setArea} />
+              <Tabs
+                tabs={AREAS.map((a) => ({ id: a, label: a }))}
+                value={area}
+                onChange={setArea}
+              />
             </div>
-            {filtered.length === 0 ? <div className="empty">No signals in this area.</div> : filtered.map((s) => <SignalRow key={s.id} s={s} />)}
+            {filtered.length === 0 ? (
+              <div className="empty">No signals in this area.</div>
+            ) : (
+              filtered.map((s) => <SignalRow key={s.id} s={s} />)
+            )}
           </Section>
         </div>
 
@@ -177,10 +262,16 @@ function HealthContent() {
             {summary.map((p, i) => (
               <p key={i}>{p}</p>
             ))}
-            <Assume title="The live version is written by AI each morning from these same signals and numbers.">Live version written by AI each morning</Assume>
+            <Assume title="The live version is written by AI each morning from these same signals and numbers.">
+              Live version written by AI each morning
+            </Assume>
           </div>
 
-          <Section title="Where to cut" kicker="COST SAVINGS" hint={`Planned: ${usd(plannedTotal)}/mo`}>
+          <Section
+            title="Where to cut"
+            kicker="COST SAVINGS"
+            hint={`Planned: ${usd(plannedTotal)}/mo`}
+          >
             {savings.length === 0 ? (
               <div className="empty">No cost-cut suggestions right now.</div>
             ) : (
@@ -201,7 +292,9 @@ function HealthContent() {
                             type="checkbox"
                             aria-label={`Plan this cut: ${s.title}`}
                             checked={planned[s.id] ?? false}
-                            onChange={(e) => setPlanned((p) => ({ ...p, [s.id]: e.target.checked }))}
+                            onChange={(e) =>
+                              setPlanned((p) => ({ ...p, [s.id]: e.target.checked }))
+                            }
                           />
                         </td>
                         <td>

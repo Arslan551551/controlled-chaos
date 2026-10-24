@@ -23,12 +23,22 @@ export interface TubePosition {
  *   If old stock is fully consumed, the receipt cost becomes the new average.
  * - Issue to Fill: removes qty at the current average; that average is the batch's tube snapshot.
  */
-export function runTubeLedger(events: TubeLedgerEvent[]): { rows: TubeLedgerRow[]; positions: Map<string, TubePosition> } {
-  const sorted = [...events].sort((a, b) => (a.date === b.date ? a.id.localeCompare(b.id) : a.date.localeCompare(b.date)));
+export function runTubeLedger(events: TubeLedgerEvent[]): {
+  rows: TubeLedgerRow[];
+  positions: Map<string, TubePosition>;
+} {
+  const sorted = [...events].sort((a, b) =>
+    a.date === b.date ? a.id.localeCompare(b.id) : a.date.localeCompare(b.date),
+  );
   const positions = new Map<string, TubePosition>();
   const rows: TubeLedgerRow[] = [];
   for (const e of sorted) {
-    const pos = positions.get(e.tubeSku) ?? { tubeSku: e.tubeSku, onHand: 0, weightedUnitCost: 0, inventoryValue: 0 };
+    const pos = positions.get(e.tubeSku) ?? {
+      tubeSku: e.tubeSku,
+      onHand: 0,
+      weightedUnitCost: 0,
+      inventoryValue: 0,
+    };
     let applied = pos.weightedUnitCost;
     if (e.type === "Receipt") {
       const cost = e.unitCost ?? 0;
@@ -109,7 +119,11 @@ export interface CogsBatch extends CogsBatchInput {
  * The tube snapshot always comes from the ledger (never typed in), so later
  * tube purchases cannot reprice a past fill.
  */
-export function buildCogsBatches(inputs: CogsBatchInput[], pos: PurchaseOrder[], ledgerRows: TubeLedgerRow[]): CogsBatch[] {
+export function buildCogsBatches(
+  inputs: CogsBatchInput[],
+  pos: PurchaseOrder[],
+  ledgerRows: TubeLedgerRow[],
+): CogsBatch[] {
   return inputs.map((b) => {
     const po = pos.find((p) => p.po === b.po);
     const tentativeBaseUnit = po ? tentativeBaseUnitCost(po) : 0;

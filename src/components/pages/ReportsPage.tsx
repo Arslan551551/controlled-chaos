@@ -6,7 +6,13 @@ import { addDays, monthKey } from "@/lib/engine/dates";
 import { consignmentPosition } from "@/lib/engine/distributors";
 import { monthlyCost } from "@/lib/engine/operations";
 import { calculateCommission, reviewScore } from "@/lib/engine/people";
-import { SALES_MONTHS, useDistributors, usePayments, useProfitability, useSalesCash } from "@/lib/derived";
+import {
+  SALES_MONTHS,
+  useDistributors,
+  usePayments,
+  useProfitability,
+  useSalesCash,
+} from "@/lib/derived";
 import { formatDate, int, monthLabel, pct, usd } from "@/lib/format";
 import { useCosting, useStore } from "@/lib/store";
 
@@ -66,7 +72,8 @@ function csvEscape(v: Cell): string {
 function downloadCsv(r: Report) {
   if (typeof window === "undefined") return;
   const lines = [r.columns.map((c) => csvEscape(c.label)).join(",")];
-  for (const row of r.rows) lines.push(r.columns.map((c) => csvEscape(row[c.key] ?? null)).join(","));
+  for (const row of r.rows)
+    lines.push(r.columns.map((c) => csvEscape(row[c.key] ?? null)).join(","));
   if (r.total) lines.push(r.columns.map((c) => csvEscape(r.total?.[c.key] ?? null)).join(","));
   const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -109,7 +116,9 @@ function ReportsContent() {
         const row: Record<string, Cell> = { channel: ch };
         let total = 0;
         for (const m of SALES_MONTHS) {
-          const v = data.channelSales.filter((s) => s.channel === ch && s.month === m).reduce((a, s) => a + s.grossSales, 0);
+          const v = data.channelSales
+            .filter((s) => s.channel === ch && s.month === m)
+            .reduce((a, s) => a + s.grossSales, 0);
           row[m] = v;
           total += v;
         }
@@ -123,7 +132,11 @@ function ReportsContent() {
         group: "Sales",
         title: "Sales by channel by month",
         description: "Gross sales per marketplace, salons and distributors",
-        columns: [{ key: "channel", label: "Channel" }, ...SALES_MONTHS.map((m) => ({ key: m, label: monthLabel(m), fmt: "usd" as const })), { key: "total", label: "Total", fmt: "usd" }],
+        columns: [
+          { key: "channel", label: "Channel" },
+          ...SALES_MONTHS.map((m) => ({ key: m, label: monthLabel(m), fmt: "usd" as const })),
+          { key: "total", label: "Total", fmt: "usd" },
+        ],
         rows,
         total,
         note: "October is month-to-date.",
@@ -132,7 +145,14 @@ function ReportsContent() {
 
     // ---- Sales vs cash received
     {
-      const rows = salesCash.map((r) => ({ channel: r.channel, gross: r.grossSales, expected: r.expectedNet, received: r.received, outstanding: r.outstanding, collected: r.collectedPct }));
+      const rows = salesCash.map((r) => ({
+        channel: r.channel,
+        gross: r.grossSales,
+        expected: r.expectedNet,
+        received: r.received,
+        outstanding: r.outstanding,
+        collected: r.collectedPct,
+      }));
       const exp = sumKey(rows, "expected");
       const rec = sumKey(rows, "received");
       list.push({
@@ -149,7 +169,14 @@ function ReportsContent() {
           { key: "collected", label: "Collected", fmt: "pct" },
         ],
         rows,
-        total: { channel: "Total", gross: sumKey(rows, "gross"), expected: exp, received: rec, outstanding: sumKey(rows, "outstanding"), collected: exp > 0 ? rec / exp : 0 },
+        total: {
+          channel: "Total",
+          gross: sumKey(rows, "gross"),
+          expected: exp,
+          received: rec,
+          outstanding: sumKey(rows, "outstanding"),
+          collected: exp > 0 ? rec / exp : 0,
+        },
         note: `${monthLabel(SALES_MONTHS[0] ?? "")} – ${monthLabel(SALES_MONTHS[SALES_MONTHS.length - 1] ?? "")}. Cash from QuickBooks bank deposits matched to settlement month.`,
       });
     }
@@ -163,14 +190,25 @@ function ReportsContent() {
         const m = monthKey(l.order.date);
         const k = `${l.order.repId}|${m}`;
         const rep = data.salesReps.find((r) => r.id === l.order.repId)?.name ?? l.order.repId;
-        const row = keys.get(k) ?? { rep, month: m, orders: 0, sales: 0, commission: 0, pending: 0 };
+        const row = keys.get(k) ?? {
+          rep,
+          month: m,
+          orders: 0,
+          sales: 0,
+          commission: 0,
+          pending: 0,
+        };
         row["orders"] = (row["orders"] as number) + 1;
         row["sales"] = (row["sales"] as number) + l.order.netAmount;
         row["commission"] = (row["commission"] as number) + l.commission;
         if (l.order.status === "Pending Review") row["pending"] = (row["pending"] as number) + 1;
         keys.set(k, row);
       }
-      const rows = [...keys.values()].sort((a, b) => String(a["rep"]).localeCompare(String(b["rep"])) || String(a["month"]).localeCompare(String(b["month"])));
+      const rows = [...keys.values()].sort(
+        (a, b) =>
+          String(a["rep"]).localeCompare(String(b["rep"])) ||
+          String(a["month"]).localeCompare(String(b["month"])),
+      );
       list.push({
         id: "salon-commission",
         group: "Sales",
@@ -185,7 +223,14 @@ function ReportsContent() {
           { key: "pending", label: "Pending review", fmt: "int" },
         ],
         rows,
-        total: { rep: "Total", month: "", orders: sumKey(rows, "orders"), sales: sumKey(rows, "sales"), commission: sumKey(rows, "commission"), pending: sumKey(rows, "pending") },
+        total: {
+          rep: "Total",
+          month: "",
+          orders: sumKey(rows, "orders"),
+          sales: sumKey(rows, "sales"),
+          commission: sumKey(rows, "commission"),
+          pending: sumKey(rows, "pending"),
+        },
         note: "Pending-review orders are included at their expected commission until approved.",
       });
     }
@@ -223,7 +268,16 @@ function ReportsContent() {
           { key: "cpc", label: "CPC", fmt: "ratio" },
         ],
         rows,
-        total: { platform: "Total", month: "", spend, adSales, roas: spend > 0 ? adSales / spend : 0, clicks, orders: sumKey(rows, "orders"), cpc: clicks > 0 ? spend / clicks : 0 },
+        total: {
+          platform: "Total",
+          month: "",
+          spend,
+          adSales,
+          roas: spend > 0 ? adSales / spend : 0,
+          clicks,
+          orders: sumKey(rows, "orders"),
+          cpc: clicks > 0 ? spend / clicks : 0,
+        },
       });
     }
 
@@ -284,7 +338,15 @@ function ReportsContent() {
     {
       const rows = payments.all
         .filter((p) => p.status !== "Paid")
-        .map((p) => ({ due: p.dueDate, vendor: p.vendor, reference: p.reference, type: p.source, category: p.category, status: p.status, amount: p.amount }));
+        .map((p) => ({
+          due: p.dueDate,
+          vendor: p.vendor,
+          reference: p.reference,
+          type: p.source,
+          category: p.category,
+          status: p.status,
+          amount: p.amount,
+        }));
       list.push({
         id: "upcoming-payments",
         group: "Finance",
@@ -300,7 +362,15 @@ function ReportsContent() {
           { key: "amount", label: "Amount", fmt: "usd" },
         ],
         rows,
-        total: { due: "Total", vendor: "", reference: "", type: "", category: "", status: "", amount: sumKey(rows, "amount") },
+        total: {
+          due: "Total",
+          vendor: "",
+          reference: "",
+          type: "",
+          category: "",
+          status: "",
+          amount: sumKey(rows, "amount"),
+        },
         note: "Payments with no date yet (TBD) show a dash in the Due column.",
       });
     }
@@ -357,7 +427,13 @@ function ReportsContent() {
       const rows = depts.map((d) => {
         const subs = active.filter((s) => s.department === d);
         const monthly = subs.reduce((a, s) => a + monthlyCost(s), 0);
-        return { department: d, tools: subs.length, list: subs.map((s) => s.tool).join(", "), monthly, annual: monthly * 12 };
+        return {
+          department: d,
+          tools: subs.length,
+          list: subs.map((s) => s.tool).join(", "),
+          monthly,
+          annual: monthly * 12,
+        };
       });
       list.push({
         id: "subscription-spend",
@@ -372,7 +448,13 @@ function ReportsContent() {
           { key: "annual", label: "Annual", fmt: "usd" },
         ],
         rows,
-        total: { department: "Total", tools: sumKey(rows, "tools"), list: "", monthly: sumKey(rows, "monthly"), annual: sumKey(rows, "annual") },
+        total: {
+          department: "Total",
+          tools: sumKey(rows, "tools"),
+          list: "",
+          monthly: sumKey(rows, "monthly"),
+          annual: sumKey(rows, "annual"),
+        },
         note: "Annual plans shown as monthly equivalent. Includes cancel-requested tools until they end.",
       });
     }
@@ -411,7 +493,13 @@ function ReportsContent() {
           { key: "topChannel", label: "Top channel" },
         ],
         rows,
-        total: { sku: "Total", product: "", units: sumKey(rows, "units"), perDay: sumKey(rows, "perDay"), topChannel: "" },
+        total: {
+          sku: "Total",
+          product: "",
+          units: sumKey(rows, "units"),
+          perDay: sumKey(rows, "perDay"),
+          topChannel: "",
+        },
       });
     }
 
@@ -420,21 +508,44 @@ function ReportsContent() {
       const rows: Record<string, Cell>[] = [];
       const fgSkus = data.skus.filter((s) => s.type !== "Empty Tube");
       for (const s of fgSkus) {
-        const qty = data.finishedGoodsStock.filter((p) => p.sku === s.sku).reduce((a, p) => a + p.qty, 0);
+        const qty = data.finishedGoodsStock
+          .filter((p) => p.sku === s.sku)
+          .reduce((a, p) => a + p.qty, 0);
         if (qty === 0) continue;
         const cost = costing.unitCost(s.sku);
-        rows.push({ category: "Finished goods (Brentwood + Georgia)", sku: s.sku, product: s.description, qty, unitCost: cost, value: Math.round(qty * cost * 100) / 100 });
+        rows.push({
+          category: "Finished goods (Brentwood + Georgia)",
+          sku: s.sku,
+          product: s.description,
+          qty,
+          unitCost: cost,
+          value: Math.round(qty * cost * 100) / 100,
+        });
       }
       for (const p of costing.ledger.positions.values()) {
         if (p.onHand <= 0) continue;
         const desc = data.skus.find((x) => x.sku === p.tubeSku)?.description ?? p.tubeSku;
-        rows.push({ category: "Empty tubes", sku: p.tubeSku, product: desc, qty: p.onHand, unitCost: p.weightedUnitCost, value: Math.round(p.inventoryValue * 100) / 100 });
+        rows.push({
+          category: "Empty tubes",
+          sku: p.tubeSku,
+          product: desc,
+          qty: p.onHand,
+          unitCost: p.weightedUnitCost,
+          value: Math.round(p.inventoryValue * 100) / 100,
+        });
       }
       for (const d of data.distributors.filter((x) => x.model === "Consignment")) {
         for (const c of consignmentPosition(data.consignmentMovements, d.id, costing.unitCost)) {
           if (c.onHandAtDistributor <= 0) continue;
           const desc = data.skus.find((x) => x.sku === c.sku)?.description ?? c.sku;
-          rows.push({ category: `Consignment at ${d.name}`, sku: c.sku, product: desc, qty: c.onHandAtDistributor, unitCost: costing.unitCost(c.sku), value: c.stockValueAtCost });
+          rows.push({
+            category: `Consignment at ${d.name}`,
+            sku: c.sku,
+            product: desc,
+            qty: c.onHandAtDistributor,
+            unitCost: costing.unitCost(c.sku),
+            value: c.stockValueAtCost,
+          });
         }
       }
       list.push({
@@ -451,7 +562,14 @@ function ReportsContent() {
           { key: "value", label: "Value", fmt: "usd" },
         ],
         rows,
-        total: { category: "Total", sku: "", product: "", qty: sumKey(rows, "qty"), unitCost: null, value: sumKey(rows, "value") },
+        total: {
+          category: "Total",
+          sku: "",
+          product: "",
+          qty: sumKey(rows, "qty"),
+          unitCost: null,
+          value: sumKey(rows, "value"),
+        },
         note: "Finished goods valued at the latest batch COGS (final if finalized, else tentative). Tubes at moving weighted average.",
       });
     }
@@ -459,20 +577,34 @@ function ReportsContent() {
     // ---- KPI scores by department
     {
       const submitted = data.kpiReviews.filter((r) => r.status === "Submitted");
-      const latest = submitted.map((r) => r.month).sort().at(-1) ?? "";
+      const latest =
+        submitted
+          .map((r) => r.month)
+          .sort()
+          .at(-1) ?? "";
       const scored = submitted
         .filter((r) => r.month === latest)
         .map((r) => {
           const emp = data.employees.find((e) => e.id === r.employeeId);
           const tpl = data.reviewTemplates.find((t) => t.id === emp?.templateId);
-          return { dept: emp?.department ?? "—", name: emp?.name ?? r.employeeId, score: tpl ? reviewScore(r, tpl) : 0 };
+          return {
+            dept: emp?.department ?? "—",
+            name: emp?.name ?? r.employeeId,
+            score: tpl ? reviewScore(r, tpl) : 0,
+          };
         });
       const depts = [...new Set(scored.map((s) => s.dept))].sort();
       const rows = depts.map((d) => {
         const mine = scored.filter((s) => s.dept === d);
         const avg = mine.reduce((a, s) => a + s.score, 0) / Math.max(1, mine.length);
         const low = [...mine].sort((a, b) => a.score - b.score)[0];
-        return { department: d, month: latest, reviewed: mine.length, average: Math.round(avg * 10) / 10, lowest: low ? `${low.name} (${low.score})` : "—" };
+        return {
+          department: d,
+          month: latest,
+          reviewed: mine.length,
+          average: Math.round(avg * 10) / 10,
+          lowest: low ? `${low.name} (${low.score})` : "—",
+        };
       });
       list.push({
         id: "kpi-by-department",
@@ -505,17 +637,26 @@ function ReportsContent() {
 
       <ReportBuilder />
 
-      <div className="section-kicker" style={{ margin: "18px 0 10px" }}>REPORT LIBRARY</div>
+      <div className="section-kicker" style={{ margin: "18px 0 10px" }}>
+        REPORT LIBRARY
+      </div>
 
       {GROUPS.map((g) => {
         const items = reports.filter((r) => r.group === g);
         if (items.length === 0) return null;
         return (
           <div key={g} style={{ marginBottom: 14 }}>
-            <div className="section-kicker" style={{ marginBottom: 8 }}>{g.toUpperCase()}</div>
+            <div className="section-kicker" style={{ marginBottom: 8 }}>
+              {g.toUpperCase()}
+            </div>
             <div className="grid-3">
               {items.map((r) => (
-                <button key={r.id} type="button" className={`report-card${active?.id === r.id ? " active" : ""}`} onClick={() => setActiveId(r.id)}>
+                <button
+                  key={r.id}
+                  type="button"
+                  className={`report-card${active?.id === r.id ? " active" : ""}`}
+                  onClick={() => setActiveId(r.id)}
+                >
                   <strong>{r.title}</strong>
                   <span>{r.description}</span>
                 </button>
@@ -525,7 +666,10 @@ function ReportsContent() {
         );
       })}
 
-      <div className="notice">Need another report? Build it above and save it, or tell Claude what the CEO asked and it gets added here as a one-click report.</div>
+      <div className="notice">
+        Need another report? Build it above and save it, or tell Claude what the CEO asked and it
+        gets added here as a one-click report.
+      </div>
 
       {active ? (
         <Section
@@ -538,13 +682,19 @@ function ReportsContent() {
             </button>
           }
         >
-          {active.note ? <div className="small" style={{ marginBottom: 10 }}>{active.note}</div> : null}
+          {active.note ? (
+            <div className="small" style={{ marginBottom: 10 }}>
+              {active.note}
+            </div>
+          ) : null}
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   {active.columns.map((c) => (
-                    <th key={c.key} className={isNum(c.fmt) ? "num" : undefined}>{c.label}</th>
+                    <th key={c.key} className={isNum(c.fmt) ? "num" : undefined}>
+                      {c.label}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -560,7 +710,11 @@ function ReportsContent() {
                     <tr key={i}>
                       {active.columns.map((c, ci) => (
                         <td key={c.key} className={isNum(c.fmt) ? "num" : undefined}>
-                          {ci === 0 ? <strong>{fmtCell(row[c.key] ?? null, c.fmt)}</strong> : fmtCell(row[c.key] ?? null, c.fmt)}
+                          {ci === 0 ? (
+                            <strong>{fmtCell(row[c.key] ?? null, c.fmt)}</strong>
+                          ) : (
+                            fmtCell(row[c.key] ?? null, c.fmt)
+                          )}
                         </td>
                       ))}
                     </tr>
@@ -570,7 +724,9 @@ function ReportsContent() {
                   <tr className="total-row">
                     {active.columns.map((c) => (
                       <td key={c.key} className={isNum(c.fmt) ? "num" : undefined}>
-                        {active.total?.[c.key] === "" ? "" : fmtCell(active.total?.[c.key] ?? null, c.fmt)}
+                        {active.total?.[c.key] === ""
+                          ? ""
+                          : fmtCell(active.total?.[c.key] ?? null, c.fmt)}
                       </td>
                     ))}
                   </tr>

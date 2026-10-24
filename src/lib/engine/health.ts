@@ -21,7 +21,14 @@ export type Severity = "critical" | "warning" | "good";
 
 export interface HealthSignal {
   id: string;
-  area: "Cash" | "Profitability" | "Marketing" | "Subscriptions" | "Inventory" | "Collections" | "Distributors";
+  area:
+    | "Cash"
+    | "Profitability"
+    | "Marketing"
+    | "Subscriptions"
+    | "Inventory"
+    | "Collections"
+    | "Distributors";
   severity: Severity;
   title: string;
   detail: string;
@@ -52,15 +59,20 @@ export function healthSignals(i: HealthInput): HealthSignal[] {
   // Cash
   const lowest = [...i.cash].sort((a, b) => a.closing - b.closing)[0];
   if (lowest) {
-    const sev: Severity = lowest.closing < 0 ? "critical" : lowest.closing < t.minimumCashBuffer ? "warning" : "good";
+    const sev: Severity =
+      lowest.closing < 0 ? "critical" : lowest.closing < t.minimumCashBuffer ? "warning" : "good";
     out.push({
       id: "cash-low",
       area: "Cash",
       severity: sev,
-      title: sev === "good" ? "Cash stays above the minimum buffer" : `Projected cash falls to ${usd(lowest.closing)}`,
+      title:
+        sev === "good"
+          ? "Cash stays above the minimum buffer"
+          : `Projected cash falls to ${usd(lowest.closing)}`,
       detail: `Lowest projected month-end cash is ${usd(lowest.closing)} (${lowest.month}) against a ${usd(t.minimumCashBuffer)} buffer.`,
       monthlySaving: 0,
-      suggestion: sev === "good" ? null : "Move non-critical Non-PO payments later or stage PO installments.",
+      suggestion:
+        sev === "good" ? null : "Move non-critical Non-PO payments later or stage PO installments.",
     });
   }
 
@@ -75,7 +87,10 @@ export function healthSignals(i: HealthInput): HealthSignal[] {
         title: `${r.channel} net margin ${pct(r.netMarginPct)}`,
         detail: `Below the ${pct(t.targetNetMarginPct)} target. Ad spend ${usd(r.adSpend)}, fees ${usd(r.platformFees)}, allocated overhead ${usd(r.allocatedExpenses)}.`,
         monthlySaving: 0,
-        suggestion: r.adSpend > r.netProfit ? `Review ${r.channel} ad spend first — it is larger than the channel's profit.` : `Review ${r.channel} pricing and fees.`,
+        suggestion:
+          r.adSpend > r.netProfit
+            ? `Review ${r.channel} ad spend first — it is larger than the channel's profit.`
+            : `Review ${r.channel} pricing and fees.`,
       });
     }
   }
@@ -114,7 +129,8 @@ export function healthSignals(i: HealthInput): HealthSignal[] {
     }
   }
   const byCategory = new Map<string, Subscription[]>();
-  for (const s of i.subscriptions.filter((x) => x.status === "Active")) byCategory.set(s.category, [...(byCategory.get(s.category) ?? []), s]);
+  for (const s of i.subscriptions.filter((x) => x.status === "Active"))
+    byCategory.set(s.category, [...(byCategory.get(s.category) ?? []), s]);
   for (const [cat, subs] of byCategory) {
     if (subs.length < 2) continue;
     const cheapest = [...subs].sort((a, b) => monthlyCost(a) - monthlyCost(b))[0]!;
@@ -134,15 +150,23 @@ export function healthSignals(i: HealthInput): HealthSignal[] {
       id: `detected-${d.merchant}`,
       area: "Subscriptions",
       severity: "warning",
-      title: d.finding === "Not registered" ? `Unregistered recurring charge: ${d.merchant}` : `${d.merchant} price increased`,
+      title:
+        d.finding === "Not registered"
+          ? `Unregistered recurring charge: ${d.merchant}`
+          : `${d.merchant} price increased`,
       detail: `Last charge ${usd(d.lastAmount)} on ${d.lastDate}; seen in ${d.months} months.`,
       monthlySaving: d.finding === "Not registered" ? d.averageAmount : 0,
-      suggestion: d.finding === "Not registered" ? "Assign an owner or cancel." : "Confirm the new price was approved.",
+      suggestion:
+        d.finding === "Not registered"
+          ? "Assign an owner or cancel."
+          : "Confirm the new price was approved.",
     });
   }
 
   // Inventory
-  const poNow = i.planning.filter((p) => p.poStatus === "PO Now" || p.poStatus === "Additional PO Required");
+  const poNow = i.planning.filter(
+    (p) => p.poStatus === "PO Now" || p.poStatus === "Additional PO Required",
+  );
   if (poNow.length > 0) {
     out.push({
       id: "inventory-po",
@@ -186,11 +210,16 @@ export function healthSignals(i: HealthInput): HealthSignal[] {
   }
 
   const order: Record<Severity, number> = { critical: 0, warning: 1, good: 2 };
-  return out.sort((a, b) => order[a.severity] - order[b.severity] || b.monthlySaving - a.monthlySaving);
+  return out.sort(
+    (a, b) => order[a.severity] - order[b.severity] || b.monthlySaving - a.monthlySaving,
+  );
 }
 
 /** 0–100 score: start at 100, −15 per critical, −5 per warning. */
 export function healthScore(signals: HealthSignal[]): number {
-  const s = signals.reduce((a, x) => a - (x.severity === "critical" ? 15 : x.severity === "warning" ? 5 : 0), 100);
+  const s = signals.reduce(
+    (a, x) => a - (x.severity === "critical" ? 15 : x.severity === "warning" ? 5 : 0),
+    100,
+  );
   return Math.max(0, Math.min(100, s));
 }

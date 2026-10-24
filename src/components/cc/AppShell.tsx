@@ -7,7 +7,9 @@ import { useStore } from "@/lib/store";
 export function AppShell({ children }: { children: ReactNode }) {
   const { role, setRole, notice, flash } = useStore();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const current = MODULES.find((m) => (m.path === "/" ? pathname === "/" : pathname.startsWith(m.path))) ?? MODULES[0]!;
+  const current =
+    MODULES.find((m) => (m.path === "/" ? pathname === "/" : pathname.startsWith(m.path))) ??
+    MODULES[0]!;
   const [refreshing, setRefreshing] = useState(false);
 
   const visible = MODULES.filter((m) => access(role, m.id));
@@ -39,7 +41,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="sidebar-bottom">
-            <div className="label" style={{ fontWeight: 800 }}>Controlled Chaos</div>
+            <div className="label" style={{ fontWeight: 800 }}>
+              Controlled Chaos
+            </div>
             <div className="role-small">{role}</div>
           </div>
         </aside>
@@ -48,10 +52,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           <header className="topbar">
             <div>
               <div className="page-title">Controlled Chaos</div>
-              <div className="page-sub">{current.label} · {current.subtitle}</div>
+              <div className="page-sub">
+                {current.label} · {current.subtitle}
+              </div>
             </div>
             <div className="top-actions">
-              <select className="control role-select" aria-label="Preview as role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
+              <select
+                className="control role-select"
+                aria-label="Preview as role"
+                value={role}
+                onChange={(e) => setRole(e.target.value as Role)}
+              >
                 {ROLES.map((r) => (
                   <option key={r}>{r}</option>
                 ))}
@@ -75,7 +86,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="content">
             <div className="proto-banner">
               <span>
-                <strong>Prototype</strong> · sample data · use the role switcher to preview each user's view. Items marked <span className="assume">⚑ assumption</span> need your confirmation.
+                <strong>Prototype</strong> · sample data · use the role switcher to preview each
+                user's view. Items marked <span className="assume">⚑ assumption</span> need your
+                confirmation.
               </span>
               <span className="muted">Data as of 24 Oct 2026, 06:00</span>
             </div>

@@ -6,12 +6,7 @@ export type ProductType = "Finished Goods" | "Accessory" | "Empty Tube";
 export type CogsMethod = "Tube Fill" | "Direct Purchase" | "Component / Empty Tube";
 export type Location = "Brentwood" | "Georgia";
 export type SalesChannel =
-  | "Amazon"
-  | "Shopify"
-  | "TikTok Shop"
-  | "Walmart"
-  | "Salon Direct"
-  | "Distributor";
+  "Amazon" | "Shopify" | "TikTok Shop" | "Walmart" | "Salon Direct" | "Distributor";
 
 export interface Sku {
   sku: string;
@@ -94,7 +89,16 @@ export interface PurchaseOrder {
 export interface DocumentRef {
   id: string;
   name: string;
-  type: "PO Invoice" | "Supplier Quotation" | "Shipping Document" | "Packing List" | "Receipt Evidence" | "COGS Support" | "Vendor Document" | "Stock Count Sheet" | "Other";
+  type:
+    | "PO Invoice"
+    | "Supplier Quotation"
+    | "Shipping Document"
+    | "Packing List"
+    | "Receipt Evidence"
+    | "COGS Support"
+    | "Vendor Document"
+    | "Stock Count Sheet"
+    | "Other";
   uploadedBy: string;
   uploadedAt: string;
 }
