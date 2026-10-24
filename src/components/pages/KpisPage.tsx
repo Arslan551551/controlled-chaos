@@ -7,6 +7,7 @@ import { summarize } from "@/lib/engine/marketing";
 import { consultantScore, rating, reviewScore, type Employee, type KpiReview, type Rating, type ReviewTemplate } from "@/lib/engine/people";
 import { monthLabel, pct, ratio } from "@/lib/format";
 import { newId, useStore } from "@/lib/store";
+import { PayBonusTab } from "./PayBonusTab";
 
 const REVIEW_MONTHS = ["2026-08", "2026-09", "2026-10"];
 
@@ -31,7 +32,7 @@ const CONSULTANT_PLATFORMS: Record<string, string[]> = {
   "C-META": ["Meta Ads", "TikTok Ads"],
 };
 
-type TabId = "reviews" | "consultants" | "history";
+type TabId = "reviews" | "consultants" | "history" | "pay";
 
 export function KpisPage() {
   return (
@@ -88,6 +89,7 @@ function KpisInner() {
             { id: "reviews", label: "Monthly Reviews" },
             { id: "consultants", label: "Consultants" },
             { id: "history", label: "Score History" },
+            { id: "pay", label: "Pay & Bonus" },
           ]}
           value={tab}
           onChange={setTab}
@@ -174,6 +176,8 @@ function KpisInner() {
           </Section>
         </>
       ) : null}
+
+      {tab === "pay" ? <PayBonusTab /> : null}
 
       {tab === "consultants" ? <ConsultantsTab month={month} setMonth={setMonth} visibleIds={visibleEmployees.map((e) => e.id)} /> : null}
 

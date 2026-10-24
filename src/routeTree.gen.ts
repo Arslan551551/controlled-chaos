@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ArRouteImport } from './routes/ar'
 import { Route as CashFlowRouteImport } from './routes/cash-flow'
 import { Route as CogsRouteImport } from './routes/cogs'
 import { Route as DistributorsRouteImport } from './routes/distributors'
@@ -22,10 +23,16 @@ import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SalesCashRouteImport } from './routes/sales-cash'
 import { Route as SalonsRouteImport } from './routes/salons'
 import { Route as StockCountRouteImport } from './routes/stock-count'
+import { Route as StockOutflowsRouteImport } from './routes/stock-outflows'
 import { Route as ToolsRouteImport } from './routes/tools'
 import { Route as VendorRouteImport } from './routes/vendor'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ArRoute = ArRouteImport.update({
+  id: '/ar',
+  path: '/ar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CashFlowRoute = CashFlowRouteImport.update({
   id: '/cash-flow',
   path: '/cash-flow',
@@ -91,6 +98,11 @@ const StockCountRoute = StockCountRouteImport.update({
   path: '/stock-count',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StockOutflowsRoute = StockOutflowsRouteImport.update({
+  id: '/stock-outflows',
+  path: '/stock-outflows',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToolsRoute = ToolsRouteImport.update({
   id: '/tools',
   path: '/tools',
@@ -109,6 +121,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/ar': typeof ArRoute
   '/cash-flow': typeof CashFlowRoute
   '/cogs': typeof CogsRoute
   '/distributors': typeof DistributorsRoute
@@ -122,11 +135,13 @@ export interface FileRoutesByFullPath {
   '/sales-cash': typeof SalesCashRoute
   '/salons': typeof SalonsRoute
   '/stock-count': typeof StockCountRoute
+  '/stock-outflows': typeof StockOutflowsRoute
   '/tools': typeof ToolsRoute
   '/vendor': typeof VendorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/ar': typeof ArRoute
   '/cash-flow': typeof CashFlowRoute
   '/cogs': typeof CogsRoute
   '/distributors': typeof DistributorsRoute
@@ -140,12 +155,14 @@ export interface FileRoutesByTo {
   '/sales-cash': typeof SalesCashRoute
   '/salons': typeof SalonsRoute
   '/stock-count': typeof StockCountRoute
+  '/stock-outflows': typeof StockOutflowsRoute
   '/tools': typeof ToolsRoute
   '/vendor': typeof VendorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/ar': typeof ArRoute
   '/cash-flow': typeof CashFlowRoute
   '/cogs': typeof CogsRoute
   '/distributors': typeof DistributorsRoute
@@ -159,19 +176,21 @@ export interface FileRoutesById {
   '/sales-cash': typeof SalesCashRoute
   '/salons': typeof SalonsRoute
   '/stock-count': typeof StockCountRoute
+  '/stock-outflows': typeof StockOutflowsRoute
   '/tools': typeof ToolsRoute
   '/vendor': typeof VendorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/tools' | '/vendor'
+  fullPaths: '/' | '/ar' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/stock-outflows' | '/tools' | '/vendor'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/tools' | '/vendor'
-  id: '__root__' | '/' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/tools' | '/vendor'
+  to: '/' | '/ar' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/stock-outflows' | '/tools' | '/vendor'
+  id: '__root__' | '/' | '/ar' | '/cash-flow' | '/cogs' | '/distributors' | '/health' | '/kpis' | '/marketing' | '/payments' | '/profitability' | '/projection' | '/reports' | '/sales-cash' | '/salons' | '/stock-count' | '/stock-outflows' | '/tools' | '/vendor'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ArRoute: typeof ArRoute
   CashFlowRoute: typeof CashFlowRoute
   CogsRoute: typeof CogsRoute
   DistributorsRoute: typeof DistributorsRoute
@@ -185,6 +204,7 @@ export interface RootRouteChildren {
   SalesCashRoute: typeof SalesCashRoute
   SalonsRoute: typeof SalonsRoute
   StockCountRoute: typeof StockCountRoute
+  StockOutflowsRoute: typeof StockOutflowsRoute
   ToolsRoute: typeof ToolsRoute
   VendorRoute: typeof VendorRoute
 }
@@ -196,6 +216,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ar': {
+      id: '/ar'
+      path: '/ar'
+      fullPath: '/ar'
+      preLoaderRoute: typeof ArRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cash-flow': {
@@ -289,6 +316,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StockCountRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/stock-outflows': {
+      id: '/stock-outflows'
+      path: '/stock-outflows'
+      fullPath: '/stock-outflows'
+      preLoaderRoute: typeof StockOutflowsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tools': {
       id: '/tools'
       path: '/tools'
@@ -308,6 +342,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ArRoute: ArRoute,
   CashFlowRoute: CashFlowRoute,
   CogsRoute: CogsRoute,
   DistributorsRoute: DistributorsRoute,
@@ -321,6 +356,7 @@ const rootRouteChildren: RootRouteChildren = {
   SalesCashRoute: SalesCashRoute,
   SalonsRoute: SalonsRoute,
   StockCountRoute: StockCountRoute,
+  StockOutflowsRoute: StockOutflowsRoute,
   ToolsRoute: ToolsRoute,
   VendorRoute: VendorRoute,
 }

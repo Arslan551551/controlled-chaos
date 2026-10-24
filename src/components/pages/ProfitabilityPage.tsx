@@ -1,15 +1,17 @@
 import { useMemo, useState, type FormEvent } from "react";
 
 import { Assume, Field, HBar, Modal, ModalActions, ModuleGate, ModuleHead, ModuleStat, Section, Source, Tabs, ViewOnlyBanner, sum, useCanEdit } from "@/components/cc/ui";
-import { SALES_MONTHS, useProfitability } from "@/lib/derived";
+import { SALES_MONTHS, useProductProfit, useProfitability } from "@/lib/derived";
+import { actualRoas, breakevenRoas, COST_LINES, DEFAULT_BENCHMARKS, margin, type Leak, type PnlLayers, type PnlLine } from "@/lib/engine/productProfit";
 import { monthKey } from "@/lib/engine/dates";
 import { CHANNELS, allocationTotal, isValidAllocation, type Expense, type ProfitRow } from "@/lib/engine/finance";
 import type { SalesChannel } from "@/lib/engine/types";
-import { formatDate, monthLabel, pct, usd } from "@/lib/format";
+import { formatDate, int, money, monthLabel, pct, usd } from "@/lib/format";
 import { useStore } from "@/lib/store";
 
 const ALL = "all";
 type ExpenseFilter = "all" | "unallocated" | "allocated";
+type PageTab = "pnl" | "layers" | "product" | "drivers";
 
 type LineKey = Exclude<keyof ProfitRow, "channel">;
 const LINES: { key: LineKey; label: string; kind: "plus" | "minus" | "subtotal" | "pct" }[] = [
@@ -41,6 +43,14 @@ export function ProfitabilityPage() {
   const { rows, unallocated } = useProfitability(months);
   const [filter, setFilter] = useState<ExpenseFilter>("all");
   const [split, setSplit] = useState<SplitForm | null>(null);
+  const [tab, setTab] = useState<PageTab>("pnl");
+  const previousMonths = useMemo(() => {
+    if (period === ALL) return [] as string[];
+    const i = SALES_MONTHS.indexOf(period);
+    const prev = i > 0 ? SALES_MONTHS[i - 1] : undefined;
+    return prev ? [prev] : ([] as string[]);
+  }, [period]);
+  const product = useProductProfit(months, previousMonths);
 
   const total = useMemo(() => {
     const t = {} as Record<LineKey, number>;
@@ -122,6 +132,25 @@ export function ProfitabilityPage() {
           </div>
         ) : null}
 
+        <div className="toolbar">
+          <Tabs<PageTab>
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { id: "pnl", label: "Channel P&L & Expense Splits" },
+              { id: "layers", label: "By Channel (GP / CM / NP)" },
+              { id: "product", label: "By Product" },
+              { id: "drivers", label: "Profit Drivers" },
+            ]}
+          />
+        </div>
+
+        {tab === "layers" ? <LayeredChannels lines={product.current.byChannel} total={product.current.total} /> : null}
+        {tab === "product" ? <ByProduct product={product} /> : null}
+        {tab === "drivers" ? <Drivers product={product} monthCount={months.length} hasPrevious={previousMonths.length > 0} /> : null}
+
+        {tab === "pnl" ? (
+        <>
         <Section title={"Channel P&L"} hint={<Assume title="COGS per unit uses each product's latest full COGS (final if finalized, otherwise tentative)">COGS uses latest full COGS per unit</Assume>}>
           <div className="table-wrap">
             <table>
@@ -236,6 +265,9 @@ export function ProfitabilityPage() {
           </Section>
         </div>
 
+        </>
+        ) : null}
+
         <Modal open={split !== null} title="Split Expense Across Channels" onClose={() => setSplit(null)} width={620}>
           {split ? (
             <form onSubmit={saveSplit}>
@@ -276,5 +308,380 @@ export function ProfitabilityPage() {
         </Modal>
       </section>
     </ModuleGate>
+  );
+}
+
+// ---------------------------------------------------------------- GP / CM / NP views
+
+type ProductProfit = ReturnType<typeof useProductProfit>;
+
+type LayerKey = keyof PnlLayers;
+const LAYERS: { key: LayerKey; label: string; kind: "plus" | "minus" | "subtotal" }[] = [
+  { key: "grossSales", label: "Gross sales", kind: "plus" },
+  { key: "discounts", label: "− Discounts", kind: "minus" },
+  { key: "refunds", label: "− Refunds", kind: "minus" },
+  { key: "netRevenue", label: "Net revenue", kind: "subtotal" },
+  { key: "cogs", label: "− Product COGS", kind: "minus" },
+  { key: "gp", label: "GP · gross profit", kind: "subtotal" },
+  { key: "platformFees", label: "− Platform fees", kind: "minus" },
+  { key: "fulfillmentFees", label: "− Fulfilment fees", kind: "minus" },
+  { key: "shippingCost", label: "− Shipping", kind: "minus" },
+  { key: "cm1", label: "CM1 · after fulfilment", kind: "subtotal" },
+  { key: "adSpend", label: "− Ad spend", kind: "minus" },
+  { key: "sampleCost", label: "− Samples", kind: "minus" },
+  { key: "otherVariable", label: "− Commission / fund", kind: "minus" },
+  { key: "cm2", label: "CM2 · after marketing", kind: "subtotal" },
+  { key: "overhead", label: "− Allocated overhead", kind: "minus" },
+  { key: "np", label: "NP · net profit", kind: "subtotal" },
+];
+
+function LayerCell({ l, k, kind }: { l: PnlLayers; k: LayerKey; kind: "plus" | "minus" | "subtotal" }) {
+  const v = l[k];
+  if (kind === "minus") return <td className="num muted">{v ? `−${usd(v)}` : "—"}</td>;
+  return (
+    <td className={`num ${kind === "subtotal" ? "strong" : ""} ${kind === "subtotal" && v < 0 ? "neg" : ""}`}>
+      {usd(v)}
+      {kind === "subtotal" && k !== "netRevenue" ? <div className="small">{pct(margin(v, l))}</div> : null}
+    </td>
+  );
+}
+
+function LayeredTable({ columns, total }: { columns: PnlLine[]; total: PnlLayers | null }) {
+  return (
+    <div className="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th />
+            {columns.map((c) => <th key={c.key} className="num">{c.label}</th>)}
+            {total ? <th className="num">Total</th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="muted">Units</td>
+            {columns.map((c) => <td key={c.key} className="num">{int(c.units)}</td>)}
+            {total ? <td className="num strong">{int(total.units)}</td> : null}
+          </tr>
+          {LAYERS.map((row) => (
+            <tr key={row.key} className={row.key === "np" ? "total-row" : ""}>
+              <td className={row.kind === "subtotal" ? "strong" : row.kind === "minus" ? "muted" : ""}>{row.label}</td>
+              {columns.map((c) => <LayerCell key={c.key} l={c} k={row.key} kind={row.kind} />)}
+              {total ? <LayerCell l={total} k={row.key} kind={row.kind} /> : null}
+            </tr>
+          ))}
+          <tr>
+            <td className="muted">Breakeven ROAS</td>
+            {columns.map((c) => <td key={c.key} className="num">{fmtRoas(breakevenRoas(c))}</td>)}
+            {total ? <td className="num">{fmtRoas(breakevenRoas(total))}</td> : null}
+          </tr>
+          <tr>
+            <td className="muted">Actual ROAS (net revenue ÷ ads)</td>
+            {columns.map((c) => {
+              const be = breakevenRoas(c);
+              const a = actualRoas(c);
+              return <td key={c.key} className={`num ${a !== null && be !== null && a < be ? "neg" : ""}`}>{fmtRoas(a)}</td>;
+            })}
+            {total ? <td className="num">{fmtRoas(actualRoas(total))}</td> : null}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function fmtRoas(v: number | null) {
+  return v === null ? "—" : v.toFixed(2);
+}
+
+const LAYER_NOTE = (
+  <>
+    <Assume title="Each channel's overhead is its share of split shared expenses (Expense splits tab), allocated to SKUs by net revenue. Months without split expenses carry no overhead.">overhead by revenue share</Assume>{" "}
+    <Assume title="Ad spend per channel comes from the ad platforms; it is attributed to SKUs by revenue share, with extra weight for accessories pushed on social. Live: campaign → SKU mapping.">ad spend attributed to SKUs</Assume>
+  </>
+);
+
+function LayeredChannels({ lines, total }: { lines: PnlLine[]; total: PnlLayers }) {
+  const best = [...lines].sort((a, b) => margin(b.cm2, b) - margin(a.cm2, a))[0];
+  const worst = [...lines].sort((a, b) => margin(a.np, a) - margin(b.np, b))[0];
+  return (
+    <div className="stack">
+      <div className="stat-strip">
+        <ModuleStat label="GP margin" value={pct(margin(total.gp, total))} note={usd(total.gp)} />
+        <ModuleStat label="CM1 margin" value={pct(margin(total.cm1, total))} note="After fees, fulfilment, shipping" />
+        <ModuleStat label="CM2 margin" value={pct(margin(total.cm2, total))} note="After ads, samples, commission" />
+        <ModuleStat label="NP margin" value={<span className={total.np < 0 ? "neg" : ""}>{pct(margin(total.np, total))}</span>} note={usd(total.np)} />
+        <ModuleStat label="Best CM2" value={best?.label ?? "—"} note={best ? pct(margin(best.cm2, best)) : ""} />
+        <ModuleStat label="Weakest NP" value={worst?.label ?? "—"} note={worst ? pct(margin(worst.np, worst)) : ""} />
+      </div>
+      <Section title="Marketplace P&L · GP → CM1 → CM2 → NP" kicker="PRODUCTS IN CATALOGUE" hint={LAYER_NOTE}>
+        <LayeredTable columns={lines} total={total} />
+        <div className="small mt">
+          GP = net revenue − product cost. CM1 = GP − platform fees − fulfilment − shipping. CM2 = CM1 − ads − samples − commission. NP = CM2 − allocated overhead. Amazon ads sit below CM1 like every other channel so channels compare like-for-like. Breakeven ROAS = net revenue ÷ CM1.
+        </div>
+      </Section>
+      <Section title="Margin by layer" kicker="COMPARISON">
+        <div className="legend"><span><i style={{ background: "#2f6fed" }} />CM1</span><span><i style={{ background: "#148a60" }} />CM2</span><span><i style={{ background: "#b96a00" }} />NP</span></div>
+        {lines.map((l) => (
+          <div key={l.key}>
+            <div className="small strong mt">{l.label}</div>
+            <HBar label="CM1" value={Math.max(0, margin(l.cm1, l))} max={1} display={pct(margin(l.cm1, l))} />
+            <HBar label="CM2" value={Math.max(0, margin(l.cm2, l))} max={1} display={pct(margin(l.cm2, l))} tone="alt" />
+            <HBar label="NP" value={Math.max(0, margin(l.np, l))} max={1} display={<span className={l.np < 0 ? "neg" : ""}>{pct(margin(l.np, l))}</span>} tone={l.np < 0 ? "bad" : "warn"} />
+          </div>
+        ))}
+      </Section>
+    </div>
+  );
+}
+
+const QUICK_PICKS: { label: string; skus: string[] }[] = [
+  { label: "Brush + Hair Pick", skus: ["CCHAIRBRUSH1", "IE-O3AV-F28K"] },
+  { label: "All 32oz", skus: ["32-OZ-CURLCREME", "32-OZ-HAIRMOISTURIZER", "32-OZ-HAIRCLEANSER"] },
+  { label: "Curl Creme range", skus: ["CONTCHAOSCC5OZ", "CONTCHAOSCC3OZ", "32-OZ-CURLCREME"] },
+];
+
+function ByProduct({ product }: { product: ProductProfit }) {
+  const [channel, setChannel] = useState<string>(ALL);
+  const [family, setFamily] = useState<string>(ALL);
+  const [selected, setSelected] = useState<string[]>(["CCHAIRBRUSH1", "IE-O3AV-F28K"]);
+  const families = [...new Set(product.current.bySku.map((l) => l.family ?? "Other"))].sort();
+
+  const skuRows = useMemo(() => {
+    const src = channel === ALL ? product.current.bySku : product.current.lines.filter((l) => l.channel === channel).map((l) => ({ ...l, key: l.sku ?? l.key, label: product.label(l.sku ?? "") }));
+    return src.filter((l) => family === ALL || l.family === family);
+  }, [product, channel, family]);
+
+  const toggle = (sku: string) => setSelected((s) => (s.includes(sku) ? s.filter((x) => x !== sku) : [...s, sku]));
+  const selLines = product.current.lines.filter((l) => l.sku && selected.includes(l.sku));
+  const selByChannel = CHANNELS.map((c) => {
+    const ls = selLines.filter((l) => l.channel === c);
+    return ls.length ? ({ key: c, label: c, channel: c, ...sumLayersLocal(ls) } as PnlLine) : null;
+  }).filter((x): x is PnlLine => x !== null);
+  const selTotal = sumLayersLocal(selLines);
+
+  return (
+    <div className="stack">
+      <Section
+        title="Product profitability"
+        kicker="SKU × PLATFORM"
+        hint={LAYER_NOTE}
+        actions={
+          <>
+            <select className="control" value={channel} onChange={(e) => setChannel(e.target.value)} aria-label="Channel">
+              <option value={ALL}>All platforms</option>
+              {CHANNELS.map((c) => <option key={c}>{c}</option>)}
+            </select>
+            <select className="control" value={family} onChange={(e) => setFamily(e.target.value)} aria-label="Product family">
+              <option value={ALL}>All products</option>
+              {families.map((f) => <option key={f}>{f}</option>)}
+            </select>
+          </>
+        }
+      >
+        <div className="toolbar">
+          <span className="small">Quick compare:</span>
+          {QUICK_PICKS.map((q) => (
+            <button key={q.label} className="btn" type="button" onClick={() => setSelected(q.skus)}>{q.label}</button>
+          ))}
+          <button className="btn ghost" type="button" onClick={() => setSelected([])}>Clear selection</button>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th />
+                <th>Product</th>
+                <th>Family</th>
+                <th className="num">Units</th>
+                <th className="num">Net revenue</th>
+                <th className="num">GP</th>
+                <th className="num">GP %</th>
+                <th className="num">CM1 %</th>
+                <th className="num">CM2</th>
+                <th className="num">CM2 %</th>
+                <th className="num">NP</th>
+                <th className="num">NP %</th>
+                <th className="num">NP / unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {skuRows.map((l) => {
+                const sku = l.sku ?? l.key;
+                const on = selected.includes(sku);
+                return (
+                  <tr key={l.key} className={`click-row${on ? " selected-row" : ""}`} onClick={() => toggle(sku)}>
+                    <td><input type="checkbox" checked={on} readOnly aria-label={`Select ${sku}`} /></td>
+                    <td><strong>{product.label(sku)}</strong><div className="small">{sku}</div></td>
+                    <td>{l.family}</td>
+                    <td className="num">{int(l.units)}</td>
+                    <td className="num">{usd(l.netRevenue)}</td>
+                    <td className="num">{usd(l.gp)}</td>
+                    <td className="num">{pct(margin(l.gp, l))}</td>
+                    <td className="num">{pct(margin(l.cm1, l))}</td>
+                    <td className={`num ${l.cm2 < 0 ? "neg" : ""}`}>{usd(l.cm2)}</td>
+                    <td className={`num ${l.cm2 < 0 ? "neg" : ""}`}>{pct(margin(l.cm2, l))}</td>
+                    <td className={`num strong ${l.np < 0 ? "neg" : ""}`}>{usd(l.np)}</td>
+                    <td className={`num ${l.np < 0 ? "neg" : ""}`}>{pct(margin(l.np, l))}</td>
+                    <td className={`num ${l.np < 0 ? "neg" : ""}`}>{l.units ? money(l.np / l.units) : "—"}</td>
+                  </tr>
+                );
+              })}
+              {skuRows.length === 0 ? <tr><td colSpan={13} className="empty">No sales for this filter.</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
+      <Section
+        title={selected.length ? `${selected.map((s) => product.label(s)).join(" + ")} on every platform` : "Select products above"}
+        kicker="SELECTED PRODUCTS · BY PLATFORM"
+        hint={selected.length ? `${int(selTotal.units)} units · NP ${usd(selTotal.np)} (${pct(margin(selTotal.np, selTotal))})` : undefined}
+      >
+        {selected.length && selByChannel.length ? (
+          <LayeredTable columns={selByChannel} total={selTotal} />
+        ) : (
+          <div className="empty">Tick one or more products (or use a quick compare) to see GP, CM and NP on each platform.</div>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+function sumLayersLocal(ls: PnlLayers[]): PnlLayers {
+  const keys: LayerKey[] = ["units", "grossSales", "discounts", "refunds", "cogs", "platformFees", "fulfillmentFees", "shippingCost", "adSpend", "sampleCost", "otherVariable", "overhead"];
+  const t = { units: 0, grossSales: 0, discounts: 0, refunds: 0, netRevenue: 0, cogs: 0, gp: 0, platformFees: 0, fulfillmentFees: 0, shippingCost: 0, cm1: 0, adSpend: 0, sampleCost: 0, otherVariable: 0, cm2: 0, overhead: 0, np: 0 };
+  for (const l of ls) for (const k of keys) t[k] += l[k];
+  t.netRevenue = t.grossSales - t.discounts - t.refunds;
+  t.gp = t.netRevenue - t.cogs;
+  t.cm1 = t.gp - t.platformFees - t.fulfillmentFees - t.shippingCost;
+  t.cm2 = t.cm1 - t.adSpend - t.sampleCost - t.otherVariable;
+  t.np = t.cm2 - t.overhead;
+  return t;
+}
+
+function Drivers({ product, monthCount, hasPrevious }: { product: ProductProfit; monthCount: number; hasPrevious: boolean }) {
+  const [scope, setScope] = useState<"all" | "channel" | "sku">("all");
+  const leaks = product.leaks.filter((l) => scope === "all" || l.scope === scope);
+  const totalLeak = sum(product.leaks, (l) => l.monthlyImpact);
+  const channels = product.current.byChannel;
+  const byChannelLeak = CHANNELS.map((c) => ({ c, v: sum(product.leaks.filter((l) => l.channel === c), (l) => l.monthlyImpact) })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+  const company = product.current.total;
+  const losing = product.current.lines.filter((l) => l.cm2 < 0);
+
+  return (
+    <div className="stack">
+      <div className="stat-strip">
+        <ModuleStat label="Profit leaking / month" value={<span className="neg">{usd(totalLeak)}</span>} note="Cost above target or company average" />
+        <ModuleStat label="Biggest leak" value={product.leaks[0] ? `${product.leaks[0].channel}` : "—"} note={product.leaks[0] ? `${product.leaks[0].label} · ${usd(product.leaks[0].monthlyImpact)}/mo` : ""} />
+        <ModuleStat label="SKU × platform losing money" value={losing.length} note="Negative CM2 (after marketing)" />
+        <ModuleStat label="Company CM2" value={pct(margin(company.cm2, company))} note={`NP ${pct(margin(company.np, company))}`} />
+      </div>
+
+      <div className="grid-main-side">
+        <Section
+          title="What is reducing profit"
+          kicker="RANKED BY $ PER MONTH"
+          hint={<Assume title="Targets are sample benchmarks per channel (e.g. TikTok shipping 15% of net revenue, Amazon fees 16%). Where no target is set, the company average is used. Agree the targets with the CEO.">sample targets</Assume>}
+          actions={
+            <Tabs<"all" | "channel" | "sku">
+              value={scope}
+              onChange={setScope}
+              tabs={[
+                { id: "all", label: "All" },
+                { id: "channel", label: "Cost lines" },
+                { id: "sku", label: "Losing SKUs" },
+              ]}
+            />
+          }
+        >
+          {leaks.length === 0 ? <div className="empty">No leaks found for this period.</div> : null}
+          {leaks.slice(0, 15).map((l) => <LeakRow key={l.id} leak={l} hasPrevious={hasPrevious} />)}
+        </Section>
+
+        <div className="stack">
+          <Section title="Leak by platform" kicker="$ PER MONTH">
+            {byChannelLeak.map((x) => (
+              <HBar key={x.c} label={x.c} value={x.v} max={byChannelLeak[0]?.v ?? 1} display={usd(x.v)} tone="bad" />
+            ))}
+          </Section>
+          <Section title="How to increase profit" kicker="TOP ACTIONS">
+            <ol>
+              {product.leaks.slice(0, 6).map((l) => (
+                <li key={l.id} style={{ marginBottom: 8 }}>
+                  <strong>{l.scope === "sku" ? `${product.label(l.sku ?? "")} on ${l.channel}` : `${l.channel} · ${l.label}`}</strong>
+                  <div className="small">{l.suggestion}</div>
+                  <div className="small pos">Up to {usd(l.monthlyImpact)}/month · {usd(l.monthlyImpact * 12)}/year</div>
+                </li>
+              ))}
+            </ol>
+          </Section>
+        </div>
+      </div>
+
+      <Section title="Cost per unit by platform" kicker="WHAT EACH UNIT COSTS TO SELL" hint={`${monthCount === 1 ? "Selected month" : `${monthCount} months`} · red = above target / company average`}>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cost line</th>
+                {channels.map((c) => <th key={c.key} className="num">{c.label}</th>)}
+                <th className="num">Company</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td className="muted">Net revenue / unit</td>
+                {channels.map((c) => <td key={c.key} className="num">{c.units ? money(c.netRevenue / c.units) : "—"}</td>)}
+                <td className="num">{company.units ? money(company.netRevenue / company.units) : "—"}</td>
+              </tr>
+              {COST_LINES.map(({ key, label }) => (
+                <tr key={key}>
+                  <td>{label}</td>
+                  {channels.map((c) => {
+                    const p = c.netRevenue > 0 ? c[key] / c.netRevenue : 0;
+                    const bench = (c.channel ? DEFAULT_BENCHMARKS[c.channel]?.[key] : undefined) ?? (key === "cogs" ? null : company.netRevenue > 0 ? company[key] / company.netRevenue : 0);
+                    const high = bench !== null && c[key] > 0 && p > bench + 0.0005;
+                    return (
+                      <td key={c.key} className={`num ${high ? "neg" : ""}`}>
+                        {c[key] ? money(c.units ? c[key] / c.units : 0) : "—"}
+                        {c[key] ? <div className="small">{pct(p)}</div> : null}
+                      </td>
+                    );
+                  })}
+                  <td className="num">
+                    {company[key] ? money(company.units ? company[key] / company.units : 0) : "—"}
+                    {company[key] ? <div className="small">{pct(company.netRevenue > 0 ? company[key] / company.netRevenue : 0)}</div> : null}
+                  </td>
+                </tr>
+              ))}
+              <tr className="total-row">
+                <td>CM2 / unit</td>
+                {channels.map((c) => <td key={c.key} className={`num ${c.cm2 < 0 ? "neg" : ""}`}>{c.units ? money(c.cm2 / c.units) : "—"}</td>)}
+                <td className="num">{company.units ? money(company.cm2 / company.units) : "—"}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function LeakRow({ leak, hasPrevious }: { leak: Leak; hasPrevious: boolean }) {
+  const severity = leak.scope === "sku" || leak.monthlyImpact > 2500 ? "critical" : "warning";
+  return (
+    <div className={`signal ${severity}`}>
+      <div className="stripe" />
+      <div>
+        <div className="signal-title">{leak.headline}</div>
+        <div className="signal-detail">
+          {leak.scope === "channel" ? `Benchmark: ${leak.benchmarkSource}` : "Loses money after ads, samples and commission"}
+          {hasPrevious && leak.changePts !== null ? ` · ${leak.changePts >= 0 ? "+" : ""}${leak.changePts.toFixed(1)} pts vs previous month` : ""}
+        </div>
+        <div className="signal-suggest">{leak.suggestion}</div>
+      </div>
+      <div className="saving"><strong>{usd(leak.monthlyImpact)}</strong>per month</div>
+    </div>
   );
 }

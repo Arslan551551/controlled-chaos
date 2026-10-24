@@ -23,6 +23,7 @@ export const skus: Sku[] = [
   { sku: "32-OZ-HAIRCLEANSER", description: "Hair Cleanser 32oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Prime Fill", moq: 1200, leadTimeDays: 60, tubeThresholdQty: 0, unitsPerBox: 6, active: true, shipStationStatus: "Complete" },
   { sku: "CC-LICS-8OZ", description: "Leave-In Conditioner Spray 8oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Prime Fill", moq: 5000, leadTimeDays: 70, tubeThresholdQty: 0, unitsPerBox: 24, active: true, shipStationStatus: "Complete" },
   { sku: "CC-LICS-3.4OZ", description: "Leave-In Conditioner Spray 3.4oz", type: "Finished Goods", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Prime Fill", moq: 5000, leadTimeDays: 70, tubeThresholdQty: 0, unitsPerBox: 24, active: true, shipStationStatus: "Complete" },
+  { sku: "IE-O3AV-F28K", description: "Anti-Static Bamboo Hair Pick", type: "Accessory", cogsMethod: "Direct Purchase", linkedTubeSku: null, supplier: "Sample Accessory Co", moq: 2000, leadTimeDays: 45, tubeThresholdQty: 0, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
   { sku: "TB-CC-5OZ", description: "Curl Creme 5oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 10000, leadTimeDays: 82, tubeThresholdQty: 10000, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
   { sku: "TB-HM-8OZ", description: "Hair Moisturizer 8oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 5000, leadTimeDays: 35, tubeThresholdQty: 10000, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
   { sku: "TB-CC-3OZ", description: "Curl Creme 3oz Empty Tube", type: "Empty Tube", cogsMethod: "Component / Empty Tube", linkedTubeSku: null, supplier: "China Pack", moq: 10000, leadTimeDays: 76, tubeThresholdQty: 8000, unitsPerBox: 0, active: true, shipStationStatus: "Complete" },
@@ -50,6 +51,8 @@ export const finishedGoodsStock: StockPosition[] = [
   { sku: "32-OZ-HAIRCLEANSER", location: "Brentwood", qty: 102, sourceUpdatedAt: SYNC },
   { sku: "CC-LICS-8OZ", location: "Brentwood", qty: 2232, sourceUpdatedAt: SYNC },
   { sku: "CC-LICS-3.4OZ", location: "Brentwood", qty: 5424, sourceUpdatedAt: SYNC },
+  { sku: "IE-O3AV-F28K", location: "Brentwood", qty: 318, sourceUpdatedAt: SYNC },
+  { sku: "IE-O3AV-F28K", location: "Georgia", qty: 1200, sourceUpdatedAt: SYNC },
 ];
 
 /**
@@ -62,6 +65,7 @@ export const standardCost: Record<string, number> = {
   "32-OZ-HAIRCLEANSER": 7.9,
   "CC-LICS-8OZ": 2.35,
   "CC-LICS-3.4OZ": 1.55,
+  "IE-O3AV-F28K": 1.1,
 };
 
 /** Target burn per SKU: [7-day, 14-day, 30-day] average units per day. */
@@ -77,6 +81,7 @@ const BURN: Record<string, [number, number, number]> = {
   "32-OZ-HAIRCLEANSER": [0.8, 0.7, 0.7],
   "CC-LICS-8OZ": [7, 6.2, 6.1],
   "CC-LICS-3.4OZ": [6, 5.4, 5.4],
+  "IE-O3AV-F28K": [4.6, 4.2, 4.1],
 };
 
 const CHANNEL_MIX: [SalesChannel, number][] = [

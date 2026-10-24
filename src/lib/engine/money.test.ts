@@ -332,3 +332,29 @@ describe("JB consignment report", () => {
     expect(rows.reduce((a, r) => a + r.sold, 0)).toBe(215);
   });
 });
+
+describe("weekly cash schedule", () => {
+  it("rolls cash week by week (Mon–Sun) from today", async () => {
+    const { weeklyCash, weekMonday } = await import("./finance.ts");
+    expect(weekMonday("2026-10-24")).toBe("2026-10-19");
+    const weeks = weeklyCash(
+      [{ id: "a", name: "Chase", balance: 100000, syncedAt: "2026-10-24" }],
+      [
+        { id: "1", date: "2026-10-25", direction: "out", category: "PO Payment", description: "", amount: 10000, source: "Payment Planner" },
+        { id: "2", date: "2026-10-27", direction: "in", category: "Marketplace Payout", description: "", amount: 4000, source: "Payout Forecast" },
+        { id: "3", date: "2026-11-01", direction: "out", category: "Payroll", description: "", amount: 5070.3, source: "Payroll file" },
+        { id: "4", date: "2026-10-20", direction: "out", category: "PO Payment", description: "past", amount: 999, source: "Payment Planner" },
+      ],
+      "2026-10-24",
+      3,
+    );
+    expect(weeks).toHaveLength(3);
+    expect(weeks[0]!.weekStart).toBe("2026-10-24");
+    expect(weeks[0]!.weekEnd).toBe("2026-10-25");
+    expect(weeks[0]!.closing).toBe(90000);
+    expect(weeks[1]!.weekStart).toBe("2026-10-26");
+    expect(weeks[1]!.outByCategory["Payroll"]).toBe(5070.3);
+    expect(weeks[1]!.closing).toBeCloseTo(88929.7, 2);
+    expect(weeks[2]!.opening).toBeCloseTo(88929.7, 2);
+  });
+});

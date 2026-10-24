@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
-import { Assume, ModuleGate, ModuleHead, ModuleStat, Section, Source, ViewOnlyBanner, useCanEdit } from "@/components/cc/ui";
+import { Assume, ModuleGate, ModuleHead, ModuleStat, Section, Source, Tabs, ViewOnlyBanner, useCanEdit } from "@/components/cc/ui";
+import { CampaignsTab, ConversionTab } from "@/components/pages/MarketingCampaigns";
 import { SALES_MONTHS, useMarketing } from "@/lib/derived";
 import { AD_PLATFORMS, type AdPlatform } from "@/lib/engine/marketing";
 import { int, monthLabel, money, pct, ratio, usd, usdK } from "@/lib/format";
@@ -37,6 +38,7 @@ function MarketingInner() {
   const m = useMarketing(months);
   const [targets, setTargets] = useState({ roas: HEALTH_TARGETS.targetRoas, tacos: HEALTH_TARGETS.maxTacos });
   const [draft, setDraft] = useState(targets);
+  const [tab, setTab] = useState<"overview" | "campaigns" | "conversion">("overview");
 
   const roasTone = (v: number) => (v >= targets.roas ? "pos" : v >= 1 ? "" : "neg");
   const roasBadge = (v: number) =>
@@ -61,7 +63,16 @@ function MarketingInner() {
     <section className="screen active" id="screen-marketing">
       <ModuleHead title="Marketing" subtitle="Ad spend, ROAS, TACoS and funnel indicators across every ad platform">
         <div className="row">
-          <select className="control" value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Period">
+          <Tabs<"overview" | "campaigns" | "conversion">
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { id: "overview", label: "Ad Platforms" },
+              { id: "campaigns", label: "Campaigns" },
+              { id: "conversion", label: "Conversion & MER" },
+            ]}
+          />
+          <select className="control" value={period} disabled={tab === "campaigns"} onChange={(e) => setPeriod(e.target.value)} aria-label="Period">
             {SALES_MONTHS.map((mo) => (
               <option key={mo} value={mo}>
                 {monthLabel(mo)}{mo === "2026-10" ? " (month to date)" : ""}
@@ -74,6 +85,11 @@ function MarketingInner() {
 
       <ViewOnlyBanner id="marketing" text="View only for this role. The Marketing Manager maintains targets; ad data syncs automatically." />
 
+      {tab === "campaigns" ? <CampaignsTab /> : null}
+      {tab === "conversion" ? <ConversionTab months={months} /> : null}
+
+      {tab === "overview" ? (
+      <>
       <div className="row" style={{ marginBottom: 12 }}>
         {AD_PLATFORMS.map((p) => (
           <Source key={p}>{SOURCE[p]}</Source>
@@ -253,6 +269,8 @@ function MarketingInner() {
           </div>
         </Section>
       </div>
+      </>
+      ) : null}
     </section>
   );
 }

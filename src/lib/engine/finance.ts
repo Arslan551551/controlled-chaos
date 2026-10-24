@@ -1,7 +1,7 @@
 // Finance engines: payment planner, cash flow outlook (QuickBooks bank),
 // sales vs cash received, marketplace profitability with expense splits.
 
-import { endOfMonth, monthKey, monthKeys } from "./dates.ts";
+import { addDays, endOfMonth, monthKey, monthKeys, toDate } from "./dates.ts";
 import type { PurchaseOrder, SalesChannel } from "./types.ts";
 
 export const CHANNELS: SalesChannel[] = ["Amazon", "Shopify", "TikTok Shop", "Walmart", "Salon Direct", "Distributor"];
@@ -37,7 +37,7 @@ export interface NonPOPayment {
 
 export interface PlannedPayment {
   id: string;
-  source: "PO Installment" | "Non-PO";
+  source: "PO Installment" | "Non-PO" | "Payroll";
   reference: string;
   vendor: string;
   description: string;
@@ -83,6 +83,7 @@ export interface MonthlyPaymentPlan {
   total: number;
   poTotal: number;
   nonPoTotal: number;
+  payrollTotal: number;
   items: PlannedPayment[];
 }
 
@@ -95,7 +96,8 @@ export function paymentPlanByMonth(payments: PlannedPayment[], asOf: string, mon
     const items = unpaid.filter((p) => p.dueDate !== null && monthKey(p.dueDate) === k);
     const poTotal = items.filter((i) => i.source === "PO Installment").reduce((a, i) => a + i.amount, 0);
     const nonPoTotal = items.filter((i) => i.source === "Non-PO").reduce((a, i) => a + i.amount, 0);
-    return { month: k, total: poTotal + nonPoTotal, poTotal, nonPoTotal, items };
+    const payrollTotal = items.filter((i) => i.source === "Payroll").reduce((a, i) => a + i.amount, 0);
+    return { month: k, total: poTotal + nonPoTotal + payrollTotal, poTotal, nonPoTotal, payrollTotal, items };
   });
   const tbd = unpaid.filter((p) => p.dueDate === null);
   return { plan, tbd, overdue };
@@ -121,7 +123,7 @@ export interface CashForecastLine {
   category: CashInCategory | CashOutCategory;
   description: string;
   amount: number;
-  source: "Payment Planner" | "QuickBooks AR" | "Payout Forecast" | "Loan Schedule" | "Subscriptions" | "Manual";
+  source: "Payment Planner" | "QuickBooks AR" | "Payout Forecast" | "Loan Schedule" | "Subscriptions" | "Payroll file" | "Manual";
 }
 
 export interface CashFlowMonth {
@@ -160,6 +162,59 @@ export function cashFlowOutlook(accounts: BankAccount[], lines: CashForecastLine
     opening = closing;
     return row;
   });
+}
+
+export interface CashFlowWeek {
+  /** Monday of the week (ISO). The first week starts at asOf. */
+  weekStart: string;
+  weekEnd: string;
+  opening: number;
+  paymentsOut: number;
+  receiptsIn: number;
+  closing: number;
+  outByCategory: Record<string, number>;
+  inByCategory: Record<string, number>;
+  lines: CashForecastLine[];
+}
+
+/** Monday (ISO) of the week containing `iso`. */
+export function weekMonday(iso: string): string {
+  const dow = toDate(iso).getUTCDay(); // 0 = Sunday
+  return addDays(iso, -((dow + 6) % 7));
+}
+
+/**
+ * Week-by-week cash schedule (Mon–Sun): what has to be paid each week,
+ * what comes in, and what is left in the bank after the week.
+ * Week 1 runs from asOf to that Sunday. Lines dated before asOf are ignored.
+ */
+export function weeklyCash(accounts: BankAccount[], lines: CashForecastLine[], asOf: string, weeks = 8): CashFlowWeek[] {
+  let opening = accounts.reduce((a, b) => a + b.balance, 0);
+  const firstMonday = weekMonday(asOf);
+  const out: CashFlowWeek[] = [];
+  for (let w = 0; w < weeks; w++) {
+    const monday = addDays(firstMonday, w * 7);
+    const weekStart = w === 0 ? asOf : monday;
+    const weekEnd = addDays(monday, 6);
+    const inWeek = lines.filter((l) => l.date >= weekStart && l.date <= weekEnd);
+    const outByCategory: Record<string, number> = {};
+    const inByCategory: Record<string, number> = {};
+    let paymentsOut = 0;
+    let receiptsIn = 0;
+    for (const l of inWeek) {
+      if (l.direction === "out") {
+        paymentsOut += l.amount;
+        outByCategory[l.category] = (outByCategory[l.category] ?? 0) + l.amount;
+      } else {
+        receiptsIn += l.amount;
+        inByCategory[l.category] = (inByCategory[l.category] ?? 0) + l.amount;
+      }
+    }
+    const closing = opening - paymentsOut + receiptsIn;
+    out.push({ weekStart, weekEnd, opening, paymentsOut, receiptsIn, closing, outByCategory, inByCategory, lines: inWeek });
+    opening = closing;
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- sales vs cash received

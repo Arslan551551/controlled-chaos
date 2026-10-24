@@ -10,20 +10,27 @@ import {
   plannedPayments,
   profitability,
   salesVsCash,
+  weeklyCash,
   type CashForecastLine,
 } from "./engine/finance";
+import { toPlannedPayment } from "./engine/payroll";
 import { healthScore, healthSignals } from "./engine/health";
 import { AD_PLATFORMS, summarize } from "./engine/marketing";
 import { detectSubscriptions, monthlyCost } from "./engine/operations";
 import { SALES_MONTHS, HEALTH_TARGETS } from "./sample/finance";
-import { usePlanning, useStore } from "./store";
+import { useCosting, usePlanning, useStore } from "./store";
+import { buildProductPnl, DEFAULT_BENCHMARKS, profitDrivers } from "./engine/productProfit";
+import { productFamilies as PRODUCT_FAMILIES } from "./sample/productpnl";
 
 export function usePayments() {
   const { data, asOf } = useStore();
   return useMemo(() => {
-    const all = plannedPayments(data.purchaseOrders, data.nonPOPayments, data.vendors);
+    const payroll = data.payrollBatches.map(toPlannedPayment);
+    const all = [...plannedPayments(data.purchaseOrders, data.nonPOPayments, data.vendors), ...payroll].sort((a, b) =>
+      (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"),
+    );
     return { all, ...paymentPlanByMonth(all, asOf, 3) };
-  }, [data.purchaseOrders, data.nonPOPayments, data.vendors, asOf]);
+  }, [data.purchaseOrders, data.nonPOPayments, data.vendors, data.payrollBatches, asOf]);
 }
 
 export function useCashFlow() {
@@ -38,10 +45,10 @@ export function useCashFlow() {
         id: `pp-${p.id}`,
         date: p.dueDate < asOf ? asOf : p.dueDate,
         direction: "out",
-        category: p.source === "PO Installment" ? "PO Payment" : "Non-PO Payment",
-        description: `${p.vendor} · ${p.reference}`,
+        category: p.source === "PO Installment" ? "PO Payment" : p.source === "Payroll" ? "Payroll" : "Non-PO Payment",
+        description: p.source === "Payroll" ? `Pakistan payroll · ${p.reference}` : `${p.vendor} · ${p.reference}`,
         amount: p.amount,
-        source: "Payment Planner",
+        source: p.source === "Payroll" ? "Payroll file" : "Payment Planner",
       });
     }
     // Subscriptions (monthly cost on renewal day)
@@ -60,7 +67,13 @@ export function useCashFlow() {
     }
     // Manual lines: payroll, loans, tax
     data.manualCashLines.forEach((m, i) =>
-      lines.push({ id: `m-${i}`, ...m, source: m.category.startsWith("Loan") ? "Loan Schedule" : "Manual" }),
+      lines.push({
+        id: `m-${i}`,
+        ...m,
+        // Manual payroll lines are US payroll; Pakistan payroll comes from the uploaded payroll file.
+        description: m.category === "Payroll" && !m.description.startsWith("US payroll") ? `US payroll · ${m.description}` : m.description,
+        source: m.category.startsWith("Loan") ? "Loan Schedule" : "Manual",
+      }),
     );
     // Expected receipts by channel
     for (const r of data.expectedReceipts) {
@@ -82,6 +95,13 @@ export function useCashFlow() {
     const months = cashFlowOutlook(data.bankAccounts, lines, asOf, 3);
     return { months, lines, opening: data.bankAccounts.reduce((a, b) => a + b.balance, 0) };
   }, [data, asOf, payments.all]);
+}
+
+/** Week-by-week (Mon–Sun) cash schedule from today, using the same lines as the monthly outlook. */
+export function useWeeklyCash(weeks = 8) {
+  const { data, asOf } = useStore();
+  const cash = useCashFlow();
+  return useMemo(() => weeklyCash(data.bankAccounts, cash.lines, asOf, weeks), [data.bankAccounts, cash.lines, asOf, weeks]);
 }
 
 export function useSalesCash(months: string[] = SALES_MONTHS) {
@@ -153,3 +173,30 @@ export function useHealth() {
 }
 
 export { SALES_MONTHS, monthKeys };
+
+// ---------------------------------------------------------------- product profitability (GP / CM / NP)
+
+const NO_MONTHS: string[] = [];
+
+/**
+ * SKU × channel P&L for the given months. Channel overhead = that channel's share of
+ * split shared expenses (Profitability → Expense splits), allocated to SKUs by revenue.
+ * Optionally also returns the previous period of equal length for trend comparison.
+ */
+export function useProductProfit(months: string[], previousMonths: string[] = NO_MONTHS) {
+  const { data } = useStore();
+  const { unitCost } = useCosting();
+  const overheadRows = useProfitability(months).rows;
+  const prevOverheadRows = useProfitability(previousMonths).rows;
+  return useMemo(() => {
+    const label = (sku: string) => data.skus.find((s) => s.sku === sku)?.description ?? sku;
+    const family = (sku: string) => PRODUCT_FAMILIES[sku] ?? "Other";
+    const overhead = (rows: typeof overheadRows) => Object.fromEntries(rows.map((r) => [r.channel, r.allocatedExpenses]));
+    const current = buildProductPnl({ rows: data.skuChannelMonth, months, unitCost, channelOverhead: overhead(overheadRows), family, label });
+    const previous = previousMonths.length
+      ? buildProductPnl({ rows: data.skuChannelMonth, months: previousMonths, unitCost, channelOverhead: overhead(prevOverheadRows), family, label })
+      : null;
+    const leaks = profitDrivers(current, months.length, previous, DEFAULT_BENCHMARKS, label);
+    return { current, previous, leaks, label, family };
+  }, [data.skuChannelMonth, data.skus, months, previousMonths, unitCost, overheadRows, prevOverheadRows]);
+}

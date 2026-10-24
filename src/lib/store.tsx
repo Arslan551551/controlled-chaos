@@ -11,6 +11,12 @@ import type { StockPosition } from "./engine/types";
 import * as core from "./sample/core";
 import * as fin from "./sample/finance";
 import * as ppl from "./sample/people";
+import * as kpiPlans from "./sample/kpiPlans";
+import * as ar from "./sample/ar";
+import * as outflows from "./sample/outflows";
+import * as productpnl from "./sample/productpnl";
+import * as campaignData from "./sample/campaigns";
+import * as payroll from "./sample/payroll";
 
 function initialData() {
   return {
@@ -47,6 +53,23 @@ function initialData() {
     stockCounts: ppl.stockCounts,
     subscriptions: ppl.subscriptions,
     bankTransactions: ppl.bankTransactions,
+    payrollBatches: payroll.payrollBatches,
+    campaigns: campaignData.campaigns,
+    trafficSources: campaignData.trafficSources,
+    merInputs: campaignData.merInputs,
+    skuChannelMonth: productpnl.skuChannelMonth,
+    arInvoices: ar.arInvoices,
+    arRules: ar.arRules,
+    arReminderLog: ar.arReminderLog,
+    stockOutflows: outflows.stockOutflows,
+    channelRecords: outflows.channelRecords,
+    outflowResolutions: outflows.outflowResolutions,
+    payPlans: kpiPlans.payPlans,
+    metricSnapshots: kpiPlans.metricSnapshots,
+    reviewRatings: kpiPlans.reviewRatings,
+    planPeople: kpiPlans.planPeople,
+    payAdjustments: kpiPlans.payAdjustments,
+    payRuns: kpiPlans.payRuns,
     outbox: [] as OutboxEmail[],
   };
 }

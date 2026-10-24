@@ -1,7 +1,7 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { Fragment, useMemo, useState, type FormEvent } from "react";
 
-import { Assume, Field, Modal, ModalActions, ModuleGate, ModuleHead, ModuleStat, Section, Source, ViewOnlyBanner, sum, useCanEdit } from "@/components/cc/ui";
-import { useCashFlow } from "@/lib/derived";
+import { Assume, Field, Modal, ModalActions, ModuleGate, ModuleHead, ModuleStat, Section, Source, Tabs, ViewOnlyBanner, sum, useCanEdit } from "@/components/cc/ui";
+import { useCashFlow, useWeeklyCash } from "@/lib/derived";
 import type { CashFlowMonth } from "@/lib/engine/finance";
 import { formatDate, monthLabel, usd } from "@/lib/format";
 import { HEALTH_TARGETS } from "@/lib/sample/finance";
@@ -32,6 +32,7 @@ export function CashFlowPage() {
   const cash = useCashFlow();
   const [selected, setSelected] = useState<string | null>(cash.months[0]?.month ?? null);
   const [form, setForm] = useState<{ kind: ManualKind; date: string; description: string; amount: string } | null>(null);
+  const [view, setView] = useState<"monthly" | "weekly">("monthly");
 
   const buffer = HEALTH_TARGETS.minimumCashBuffer;
   const lowest = useMemo(() => [...cash.months].sort((a, b) => a.closing - b.closing)[0], [cash.months]);
@@ -82,6 +83,17 @@ export function CashFlowPage() {
           <div className="notice">Projected cash stays above the {usd(buffer)} minimum buffer for all three months.</div>
         )}
 
+        <div className="toolbar">
+          <Tabs<"monthly" | "weekly">
+            tabs={[{ id: "monthly", label: "3-month outlook" }, { id: "weekly", label: "Weekly schedule" }]}
+            value={view}
+            onChange={setView}
+          />
+        </div>
+
+        {view === "weekly" ? <WeeklySchedule buffer={buffer} /> : null}
+
+        {view === "monthly" ? (
         <div className="grid-main-side">
           <Section title="3-Month Outlook" hint="Click a month for its lines">
             <div className="table-wrap">
@@ -189,6 +201,7 @@ export function CashFlowPage() {
             </Section>
           </div>
         </div>
+        ) : null}
 
         <Modal open={form !== null} title="Add Cash Line" onClose={() => setForm(null)} width={560}>
           {form ? (
@@ -220,3 +233,86 @@ export function CashFlowPage() {
     </ModuleGate>
   );
 }
+
+function WeeklySchedule({ buffer }: { buffer: number }) {
+  const weeks = useWeeklyCash(8);
+  const [open, setOpen] = useState<string | null>(weeks[0]?.weekStart ?? null);
+  const below = weeks.filter((w) => w.closing < buffer);
+  return (
+    <Section title="Weekly cash schedule" kicker="NEXT 8 WEEKS · MON–SUN" hint="What to pay each week, what comes in, what is left in the bank">
+      {below.length ? (
+        <div className="notice readonly">
+          Cash drops below the {usd(buffer)} buffer in {below.length} week{below.length === 1 ? "" : "s"}, first in the week of <strong>{formatDate(below[0]?.weekStart)}</strong>.
+        </div>
+      ) : (
+        <div className="notice">Cash stays above the {usd(buffer)} buffer every week.</div>
+      )}
+      <div className="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th className="num">Opening</th>
+              <th className="num">PO</th>
+              <th className="num">Non-PO</th>
+              <th className="num">Payroll</th>
+              <th className="num">Subscriptions</th>
+              <th className="num">Loans &amp; tax</th>
+              <th className="num">Total out</th>
+              <th className="num">Receipts in</th>
+              <th className="num">Cash left</th>
+            </tr>
+          </thead>
+          <tbody>
+            {weeks.map((w) => {
+              const c = (k: string) => w.outByCategory[k] ?? 0;
+              const loansTax = c("Loan Repayment") + c("Tax") + c("Other Payment");
+              const isOpen = open === w.weekStart;
+              return (
+                <Fragment key={w.weekStart}>
+                  <tr className={`click-row${isOpen ? " selected-row" : ""}`} onClick={() => setOpen(isOpen ? null : w.weekStart)}>
+                    <td className="nowrap"><strong>{formatDate(w.weekStart)}</strong> – {formatDate(w.weekEnd)}</td>
+                    <td className="num">{usd(w.opening)}</td>
+                    <td className="num">{c("PO Payment") ? usd(c("PO Payment")) : "—"}</td>
+                    <td className="num">{c("Non-PO Payment") ? usd(c("Non-PO Payment")) : "—"}</td>
+                    <td className="num">{c("Payroll") ? usd(c("Payroll")) : "—"}</td>
+                    <td className="num">{c("Subscription") ? usd(c("Subscription")) : "—"}</td>
+                    <td className="num">{loansTax ? usd(loansTax) : "—"}</td>
+                    <td className="num neg strong">−{usd(w.paymentsOut)}</td>
+                    <td className="num pos">{w.receiptsIn ? `+${usd(w.receiptsIn)}` : "—"}</td>
+                    <td className={`num strong ${w.closing < buffer ? "neg" : ""}`}>{usd(w.closing)}{w.closing < buffer ? " ⚠" : ""}</td>
+                  </tr>
+                  {isOpen ? (
+                    <tr>
+                      <td colSpan={10} style={{ background: "#f8fbff" }}>
+                        {w.lines.length === 0 ? (
+                          <div className="small">Nothing scheduled this week.</div>
+                        ) : (
+                          <table className="compact" style={{ minWidth: 0 }}>
+                            <tbody>
+                              {[...w.lines].sort((a, b) => a.date.localeCompare(b.date)).map((l) => (
+                                <tr key={l.id}>
+                                  <td className="nowrap">{formatDate(l.date)}</td>
+                                  <td>{l.description}<div className="small">{l.category} · {l.source}</div></td>
+                                  <td className={`num strong ${l.direction === "out" ? "neg" : "pos"}`}>{l.direction === "out" ? "−" : "+"}{usd(l.amount)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="small mt">
+        Week 1 runs from today to Sunday. Pakistan payroll comes from the uploaded payroll file; US payroll, loans and tax are Director Finance's cash lines.
+      </div>
+    </Section>
+  );
+}
+
